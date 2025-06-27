@@ -146,10 +146,10 @@ echo "✔ Using xk6-influxdb output → $INFLUXDB (${K6_INFLUXDB_BUCKET})"
 ###############################################################################
 DEFAULT_RPCS=(
   "https://dream-rpc.somnia.network/"
-  "https://rpc.ankr.com/somnia_testnet/..."
+#  "https://rpc.ankr.com/somnia_testnet/..."
   "https://shannon-somnia.bharvest.io"
 )
-DEFAULT_PROFILES=(baseline steady_50 spike_200)
+DEFAULT_PROFILES=(baseline steady_50 spike_200 ramp_find_max break_steady spike_10k)
 DEFAULT_SCENARIOS=(
   S1_BlockNumber S2_ChainId S3_GetBalance S4_GetCode
   S5_EthCallSimple S6_EthCallHeavy S7_GetLogsSmall S8_GetLogsRange

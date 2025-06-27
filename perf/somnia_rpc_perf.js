@@ -55,6 +55,38 @@ function profile(name, vus) {
                 duration: '35s',
                 preAllocatedVUs: Math.max(400, vus * 8),
             };
+        case 'ramp_find_max':
+            return {
+                executor: 'ramping-arrival-rate',
+                timeUnit: '1s',
+                preAllocatedVUs: Math.max(500, vus * 10),
+                stages: [
+                    { target: 0,      duration: '5s'   }, // settle
+                    { target: 1000,   duration: '30s'  },
+                    { target: 5000,   duration: '60s'  },
+                    { target: 10000,  duration: '60s'  }, // peak search
+                ],
+            };
+        case 'break_steady':
+            return {
+                executor: 'constant-arrival-rate',
+                rate: 5000,
+                timeUnit: '1s',
+                duration: '5m',
+                preAllocatedVUs: Math.max(2000, vus * 15),
+            };
+
+        /* ───────── NEW: brutal spike ───────── */
+        case 'spike_10k':
+            return {
+                executor: 'constant-arrival-rate',
+                rate: 10000,
+                timeUnit: '1s',
+                duration: '30s',
+                preAllocatedVUs: Math.max(4000, vus * 20),
+            };
+
+
 
         default:
             throw new Error(`Unknown LOAD_PROFILE '${name}'`);
