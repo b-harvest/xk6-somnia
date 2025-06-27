@@ -127,19 +127,35 @@ if ! ask_reuse K6_INFLUXDB_BUCKET "K6_INFLUXDB_BUCKET"; then \
      prompt_plain K6_INFLUXDB_BUCKET "Enter K6 InfluxDB bucket"; fi
 
 ###############################################################################
-# 4. k6 binary & script
+# 4. k6 binary & script  +  tuned xk6-influxdb DSN
 ###############################################################################
 K6_BIN="${K6_BIN:-./k6}"
 SCRIPT_PATH="${SCRIPT_PATH:-perf/somnia_rpc_perf.js}"
+
 [[ -x $K6_BIN ]]   || { echo "ERROR: k6 binary not found at '$K6_BIN'"; exit 1; }
 [[ -f $SCRIPT_PATH ]] || { echo "ERROR: k6 script not found at '$SCRIPT_PATH'"; exit 1; }
 
-IFS='://' read -r proto rest <<<"$INFLUXDB"                # split proto://host...
+# ---------- output-tuning defaults -------------------------------------------------
+: "${K6_INFLUXDB_PUSH_INTERVAL:=10s}"      # how often to flush
+: "${K6_INFLUXDB_BATCH_SIZE:=10000}"       # lines per HTTP write
+: "${K6_INFLUXDB_MAX_BUFFER_SIZE:=200000}" # safety buffer in RAM
+: "${K6_INFLUXDB_CONCURRENT_WRITERS:=4}"   # parallel POST workers
+: "${K6_INFLUXDB_GZIP:=true}"              # compress payloads
+
+# ---------- build DSN  -------------------------------------------------------------
+IFS='://' read -r proto rest <<<"$INFLUXDB"
 [[ -z $proto || -z $rest ]] && { echo "Invalid INFLUXDB URL '$INFLUXDB'"; exit 1; }
 
-K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}"
+K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}"\
+"&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}"\
+"&pushInterval=${K6_INFLUXDB_PUSH_INTERVAL}"\
+"&batchSize=${K6_INFLUXDB_BATCH_SIZE}"\
+"&maxBufferSize=${K6_INFLUXDB_MAX_BUFFER_SIZE}"\
+"&concurrency=${K6_INFLUXDB_CONCURRENT_WRITERS}"\
+"&gzip=${K6_INFLUXDB_GZIP}"
+
 K6_OUT_ARG=(-o "$K6_OUT_DSN")
-echo "✔ Using xk6-influxdb output → $INFLUXDB (${K6_INFLUXDB_BUCKET})"
+echo "✔ xk6-influxdb → $INFLUXDB  (batch=$K6_INFLUXDB_BATCH_SIZE  interval=$K6_INFLUXDB_PUSH_INTERVAL)"
 
 ###############################################################################
 # 5. Defaults
