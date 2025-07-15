@@ -612,7 +612,7 @@ scenario_prepare() {
     case "$scenario" in
         S3_GetBalance)
             require_var TEST_ADDRESS "TEST_ADDRESS (0x…)" plain || return 1 ;;
-        S4_GetCode|S5_EthCallSimple|S6_EthCallHeavy|S15_LogsSubFilter|S17_EstimateGas)
+        S4_GetCode|S5_EthCallSimple|S6_EthCallHeavy|S15_LogsSubFilter)
             require_var CONTRACT_ADDRESS "CONTRACT_ADDRESS (0x…)" plain || return 1 ;;
         S12_SendRawTxERC20)
             require_var ERC20_TOKEN "ERC20_TOKEN address (0x…)" plain || return 1 ;;
@@ -621,7 +621,52 @@ scenario_prepare() {
         S18_GetTxReceipt)
             require_var TX_HASH "TX_HASH (0x…)" plain || return 1 ;;
         S17_EstimateGas)
-            require_var EST_DATA "raw tx data (hex)" plain || return 1 ;;
+            # Enhanced gas estimation - all variables are optional
+            log_info "Gas estimation scenario supports both custom and automatic transaction building"
+            if [[ -n "${EST_DATA:-}" ]] && [[ -n "${EST_CONTRACT:-}" ]]; then
+                log_info "Using custom gas estimation: contract=${EST_CONTRACT}, data=${EST_DATA:0:20}..."
+                # Validate contract address format
+                if [[ ! "$EST_CONTRACT" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+                    log_error "EST_CONTRACT must be a valid Ethereum address (0x...)"
+                    return 1
+                fi
+                # Validate data format
+                if [[ ! "$EST_DATA" =~ ^0x[a-fA-F0-9]*$ ]]; then
+                    log_error "EST_DATA must be valid hex data (0x...)"
+                    return 1
+                fi
+            else
+                log_info "Using automatic transaction building (12 realistic scenarios)"
+                log_info "Scenarios: legacy, eip20, eip721, eip1155, create, create2, eip1967, eip2771, multicall, eip2535"
+            fi
+            
+            # Optional: prompt for custom gas estimation variables if interactive
+            if [[ $NON_INTERACTIVE -eq 0 ]]; then
+                if [[ -z "${EST_CONTRACT:-}" ]]; then
+                    read -rp "Enter EST_CONTRACT (0x...) or press Enter for automatic: " EST_CONTRACT
+                    if [[ -n "$EST_CONTRACT" ]]; then
+                        export EST_CONTRACT
+                        save_env EST_CONTRACT
+                    fi
+                fi
+                
+                if [[ -z "${EST_DATA:-}" ]]; then
+                    read -rp "Enter EST_DATA (0x...) or press Enter for automatic: " EST_DATA
+                    if [[ -n "$EST_DATA" ]]; then
+                        export EST_DATA
+                        save_env EST_DATA
+                    fi
+                fi
+                
+                if [[ -z "${EST_VALUE:-}" ]]; then
+                    read -rp "Enter EST_VALUE (0x...) or press Enter for 0x0: " EST_VALUE
+                    if [[ -n "$EST_VALUE" ]]; then
+                        export EST_VALUE
+                        save_env EST_VALUE
+                    fi
+                fi
+            fi
+            ;;
     esac
     return 0
 }
@@ -680,6 +725,8 @@ run_k6_test() {
         ${SUB_ID:+SUB_ID="$SUB_ID"} \
         ${TX_HASH:+TX_HASH="$TX_HASH"} \
         ${EST_DATA:+EST_DATA="$EST_DATA"} \
+        ${EST_CONTRACT:+EST_CONTRACT="$EST_CONTRACT"} \
+        ${EST_VALUE:+EST_VALUE="$EST_VALUE"} \
         ${START_BLOCK:+START_BLOCK="$START_BLOCK"} \
         ${END_BLOCK:+END_BLOCK="$END_BLOCK"} \
     "$K6_BIN" "${k6_args[@]}" 2>&1 | tee -a "$LOG_FILE" || exit_code=$?
