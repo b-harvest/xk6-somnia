@@ -1138,13 +1138,246 @@ export function main_scenario(data) {
 
         // Gas estimation and transaction receipt scenarios
         case 'S17_EstimateGas': {
-            const callData = __ENV.EST_DATA || SIMPLE_SIG;
-            const targetContract = __ENV.EST_CONTRACT || CONTRACT;
+            // Enhanced gas estimation with real Ethereum transaction types
+            let estimateParams;
+            let txType = 'custom';
             
-            return jsonCall(rpcUrl, 'eth_estimateGas', 
-                [{ to: targetContract, data: callData }],
-                { contract_addr: targetContract, call_data: callData },
-                result => typeof result === 'string' && parseInt(result, 16) > 0);
+            if (__ENV.EST_DATA && __ENV.EST_CONTRACT) {
+                // Use provided custom data
+                estimateParams = {
+                    to: __ENV.EST_CONTRACT,
+                    data: __ENV.EST_DATA,
+                    from: testWallet.addr,
+                    value: __ENV.EST_VALUE || '0x0'
+                };
+                txType = 'custom';
+            } else {
+                // Build realistic transaction scenarios based on real Ethereum usage
+                const scenarios = [
+                    // 1. Simple ETH transfer (Type 0 - Legacy)
+                    {
+                        type: 'legacy',
+                        params: {
+                            to: testWallet.addr,
+                            from: testWallet.addr,
+                            value: '0x16345785D8A0000' // 0.1 ETH
+                        }
+                    },
+                    // 2. ERC20 transfer
+                    {
+                        type: 'eip20',
+                        params: {
+                            to: ERC20_ADDR || CONTRACT,
+                            from: testWallet.addr,
+                            data: '0xa9059cbb' + // transfer(address,uint256)
+                                  testWallet.addr.slice(2).padStart(64, '0') + // recipient
+                                  '0000000000000000000000000000000000000000000000000de0b6b3a7640000' // 1 token (18 decimals)
+                        }
+                    },
+                    // 3. ERC20 approve
+                    {
+                        type: 'eip20',
+                        params: {
+                            to: ERC20_ADDR || CONTRACT,
+                            from: testWallet.addr,
+                            data: '0x095ea7b3' + // approve(address,uint256)
+                                  testWallet.addr.slice(2).padStart(64, '0') + // spender
+                                  'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' // max approval
+                        }
+                    },
+                    // 4. ERC721 (NFT) transfer
+                    {
+                        type: 'eip721',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0x23b872dd' + // transferFrom(address,address,uint256)
+                                  testWallet.addr.slice(2).padStart(64, '0') + // from
+                                  testWallet.addr.slice(2).padStart(64, '0') + // to
+                                  Math.floor(Math.random() * 1000000).toString(16).padStart(64, '0') // tokenId
+                        }
+                    },
+                    // 5. ERC721 mint
+                    {
+                        type: 'eip721',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0x40c10f19' + // mint(address,uint256)
+                                  testWallet.addr.slice(2).padStart(64, '0') + // recipient
+                                  Math.floor(Math.random() * 1000000).toString(16).padStart(64, '0') // tokenId
+                        }
+                    },
+                    // 6. ERC1155 (Multi-token) transfer
+                    {
+                        type: 'eip1155',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0xf242432a' + // safeTransferFrom(address,address,uint256,uint256,bytes)
+                                  testWallet.addr.slice(2).padStart(64, '0') + // from
+                                  testWallet.addr.slice(2).padStart(64, '0') + // to
+                                  '0000000000000000000000000000000000000000000000000000000000000001' + // tokenId
+                                  '0000000000000000000000000000000000000000000000000000000000000001' + // amount
+                                  '00000000000000000000000000000000000000000000000000000000000000a0' + // data offset
+                                  '0000000000000000000000000000000000000000000000000000000000000000'   // data length
+                        }
+                    },
+                    // 7. Contract deployment
+                    {
+                        type: 'create',
+                        params: {
+                            from: testWallet.addr,
+                            data: '0x608060405234801561001057600080fd5b506040516102c53803806102c58339818101604052810190610032919061007a565b80600081905550506100a7565b600080fd5b6000819050919050565b61005781610044565b811461006257600080fd5b50565b6000815190506100748161004e565b92915050565b6000602082840312156100905761008f61003f565b5b600061009e84828501610065565b91505092915050565b61020f806100b66000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c806360fe47b11461003b5780636d4ce63c14610057575b600080fd5b610055600480360381019061005091906100c3565b610075565b005b61005f61007f565b60405161006c91906100ff565b60405180910390f35b8060008190555050565b60008054905090565b600080fd5b6000819050919050565b6100a08161008d565b81146100ab57600080fd5b50565b6000813590506100bd81610097565b92915050565b6000602082840312156100d9576100d8610088565b5b60006100e7848285016100ae565b91505092915050565b6100f98161008d565b82525050565b600060208201905061011460008301846100f0565b9291505056fea2646970667358221220'
+                        }
+                    },
+                    // 8. CREATE2 deployment
+                    {
+                        type: 'create2',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0x4af63f02' + // deploy(bytes32,bytes)
+                                  '0000000000000000000000000000000000000000000000000000000000000001' + // salt
+                                  '0000000000000000000000000000000000000000000000000000000000000040' + // bytecode offset
+                                  '0000000000000000000000000000000000000000000000000000000000000020' + // bytecode length
+                                  '608060405234801561001057600080fd5b50600080fd5b50600080fd5b50600080fd5b50'   // sample bytecode
+                        }
+                    },
+                    // 9. Proxy contract interaction (EIP-1967)
+                    {
+                        type: 'eip1967',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0x3659cfe6' + // upgradeTo(address)
+                                  testWallet.addr.slice(2).padStart(64, '0') // new implementation
+                        }
+                    },
+                    // 10. Meta transaction (EIP-2771)
+                    {
+                        type: 'eip2771',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0x0c53c51c' + // execute(address,bytes,uint256,uint256,bytes)
+                                  testWallet.addr.slice(2).padStart(64, '0') + // target
+                                  '00000000000000000000000000000000000000000000000000000000000000a0' + // data offset
+                                  '0000000000000000000000000000000000000000000000000000000000000000' + // gasLimit
+                                  '0000000000000000000000000000000000000000000000000000000000000000' + // gasToken
+                                  '0000000000000000000000000000000000000000000000000000000000000024' + // data length
+                                  SIMPLE_SIG.slice(2) + '0000000000000000000000000000000000000000000000000000000000000000' // data
+                        }
+                    },
+                    // 11. Multicall (Batch transactions)
+                    {
+                        type: 'multicall',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0xac9650d8' + // multicall(bytes[])
+                                  '0000000000000000000000000000000000000000000000000000000000000020' + // offset
+                                  '0000000000000000000000000000000000000000000000000000000000000002' + // array length
+                                  '0000000000000000000000000000000000000000000000000000000000000040' + // first call offset
+                                  '0000000000000000000000000000000000000000000000000000000000000080' + // second call offset
+                                  '0000000000000000000000000000000000000000000000000000000000000024' + // first call length
+                                  SIMPLE_SIG.slice(2) + '0000000000000000000000000000000000000000000000000000000000000000' + // first call data
+                                  '0000000000000000000000000000000000000000000000000000000000000024' + // second call length
+                                  SIMPLE_SIG.slice(2) + '0000000000000000000000000000000000000000000000000000000000000000'   // second call data
+                        }
+                    },
+                    // 12. Diamond proxy (EIP-2535)
+                    {
+                        type: 'eip2535',
+                        params: {
+                            to: CONTRACT,
+                            from: testWallet.addr,
+                            data: '0x1f931c1c' + // diamondCut(FacetCut[],address,bytes)
+                                  '0000000000000000000000000000000000000000000000000000000000000060' + // facets offset
+                                  '0000000000000000000000000000000000000000000000000000000000000000' + // init address
+                                  '00000000000000000000000000000000000000000000000000000000000000a0' + // init data offset
+                                  '0000000000000000000000000000000000000000000000000000000000000001' + // facets length
+                                  testWallet.addr.slice(2).padStart(64, '0') + // facet address
+                                  '0000000000000000000000000000000000000000000000000000000000000000' + // action (add)
+                                  '0000000000000000000000000000000000000000000000000000000000000000'   // init data length
+                        }
+                    }
+                ];
+                
+                // Select scenario based on VU and iteration for diverse testing
+                const scenarioIndex = ((__VU - 1) * 1000 + __ITER) % scenarios.length;
+                const selectedScenario = scenarios[scenarioIndex];
+                
+                estimateParams = selectedScenario.params;
+                txType = selectedScenario.type;
+            }
+            
+            // Add gas price for more realistic estimation
+            if (!estimateParams.gasPrice) {
+                try {
+                    const currentGasPrice = jsonCall(rpcUrl, 'eth_gasPrice', [], { op: 'get_gas_price_for_estimate' });
+                    if (currentGasPrice) {
+                        estimateParams.gasPrice = currentGasPrice;
+                    }
+                } catch (e) {
+                    // Gas price fetch failed, continue without it
+                    console.warn(`Failed to fetch gas price for estimation: ${e.message}`);
+                }
+            }
+            
+            // Enhanced validation function for gas estimation results
+            const validateGasEstimate = (result) => {
+                if (typeof result !== 'string' || !result.startsWith('0x')) {
+                    return false;
+                }
+                
+                const gasEstimate = parseInt(result, 16);
+                
+                // Basic sanity checks for gas estimates
+                const MIN_GAS = 21000; // Minimum for simple transfer
+                const MAX_GAS = 10000000; // Reasonable maximum for complex operations
+                
+                if (gasEstimate < MIN_GAS || gasEstimate > MAX_GAS) {
+                    console.warn(`Gas estimate out of reasonable range: ${gasEstimate} (type: ${txType})`);
+                    return false;
+                }
+                
+                // Type-specific validation based on real Ethereum transaction types
+                switch (txType) {
+                    case 'legacy':
+                        return gasEstimate >= 21000 && gasEstimate <= 25000;
+                    case 'eip20':
+                        return gasEstimate >= 45000 && gasEstimate <= 80000;
+                    case 'eip721':
+                        return gasEstimate >= 60000 && gasEstimate <= 150000;
+                    case 'eip1155':
+                        return gasEstimate >= 50000 && gasEstimate <= 120000;
+                    case 'create':
+                        return gasEstimate >= 200000 && gasEstimate <= 5000000;
+                    case 'create2':
+                        return gasEstimate >= 250000 && gasEstimate <= 3000000;
+                    case 'eip1967':
+                        return gasEstimate >= 80000 && gasEstimate <= 200000;
+                    case 'eip2771':
+                        return gasEstimate >= 100000 && gasEstimate <= 300000;
+                    case 'multicall':
+                        return gasEstimate >= 100000 && gasEstimate <= 800000;
+                    case 'eip2535':
+                        return gasEstimate >= 150000 && gasEstimate <= 500000;
+                    default:
+                        return gasEstimate >= MIN_GAS && gasEstimate <= MAX_GAS;
+                }
+            };
+            
+            return jsonCall(rpcUrl, 'eth_estimateGas', [estimateParams], 
+                { 
+                    tx_type: txType,
+                    contract_addr: estimateParams.to,
+                    from_addr: estimateParams.from,
+                    has_value: estimateParams.value && estimateParams.value !== '0x0',
+                    data_length: estimateParams.data ? estimateParams.data.length : 0
+                },
+                validateGasEstimate);
         }
 
         case 'S18_GetTxReceipt': {
