@@ -9,6 +9,9 @@
 # =============================================================================
 set -euo pipefail
 
+# Debug trap for errors with better context
+trap 'echo "Error on line $LINENO: Command failed with exit code $?" >&2; echo "Last command: ${BASH_COMMAND:-unknown}" >&2' ERR
+
 # Enable extended debugging if DEBUG is set
 [[ "${DEBUG:-0}" == "1" ]] && set -x
 
@@ -181,6 +184,14 @@ cleanup() {
         echo "LAST_RUN=$(date +%s)" >> "$SCRIPT_DIR/.k6_state"
     fi
     
+    # Log exit reason based on exit code
+    case $exit_code in
+        0) log_info "Script completed successfully" ;;
+        1) log_error "Script failed - check logs above for details" ;;
+        130) log_warn "Script interrupted by user (Ctrl+C)" ;;
+        *) log_error "Script exited with code: $exit_code" ;;
+    esac
+    
     log_info "Cleanup completed (exit code: $exit_code)"
     exit $exit_code
 }
@@ -253,6 +264,8 @@ validate_environment() {
             log_info "Using system k6 binary: $K6_BIN"
         else
             log_error "k6 binary not found (neither ./k6 nor system k6)"
+            log_error "Current directory: $(pwd)"
+            log_error "Looking for: ./k6 or k6 in PATH"
             ((errors++))
         fi
     fi
@@ -262,6 +275,8 @@ validate_environment() {
         SCRIPT_PATH="$SCRIPT_DIR/perf/somnia_rpc_perf.js"
         if [[ ! -f "$SCRIPT_PATH" ]]; then
             log_error "k6 script not found at $SCRIPT_PATH"
+            log_error "Current directory: $(pwd)"
+            log_error "Script directory: $SCRIPT_DIR"
             ((errors++))
         fi
     fi
@@ -621,6 +636,8 @@ run_k6_test() {
     local run_id="$3"
     
     log_info "Starting k6 test: $scenario @ $profile"
+    log_debug "Using k6 binary: $K6_BIN"
+    log_debug "Using script: $SCRIPT_PATH"
     
     # Build k6 command
     local -a k6_args=(
@@ -666,7 +683,7 @@ run_k6_test() {
         ${EST_DATA:+EST_DATA="$EST_DATA"} \
         ${START_BLOCK:+START_BLOCK="$START_BLOCK"} \
         ${END_BLOCK:+END_BLOCK="$END_BLOCK"} \
-    "$K6_BIN" "${k6_args[@]}" || exit_code=$?
+    "$K6_BIN" "${k6_args[@]}" 2>&1 | tee -a "$LOG_FILE" || exit_code=$?
     
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
@@ -675,6 +692,7 @@ run_k6_test() {
         log_success "Test completed: $scenario @ $profile (${duration}s)"
     else
         log_error "Test failed: $scenario @ $profile (exit code: $exit_code, duration: ${duration}s)"
+        log_error "Check the log file for details: $LOG_FILE"
     fi
     
     # Process results
@@ -794,7 +812,11 @@ main() {
     
     # Validate environment
     if ! validate_environment; then
-        log_error "Environment validation failed"
+        log_error "Environment validation failed - cannot proceed"
+        log_error "Please check the errors above and ensure:"
+        log_error "  1. k6 binary exists (./k6 or system k6)"
+        log_error "  2. Required tools (jq, curl) are installed"
+        log_error "  3. k6 script exists at: $SCRIPT_DIR/perf/somnia_rpc_perf.js"
         exit 1
     fi
     
@@ -805,8 +827,8 @@ main() {
     
     # Default values from original script
     DEFAULT_RPCS=(
-        "https://dream-rpc.somnia.network/"
-        "https://shannon-somnia.bharvest.io"
+        "https://api.infra.mainnet.somnia.network/"
+        "https://somnia-testnet.api.bharvest.dev/kurudeadbeef1234/"
     )
     
     DEFAULT_PROFILES=(
@@ -906,19 +928,39 @@ main() {
     SLEEP_SCENARIOS="${SLEEP_SCENARIOS:-600}"
     
     # Main execution loop
+    log_debug "SCENARIOS array size: ${#SCENARIOS[@]}"
+    log_debug "PROFILES array size: ${#PROFILES[@]}"
+    
+    # Check if arrays are properly populated
+    if [[ ${#SCENARIOS[@]} -eq 0 ]]; then
+        log_error "No scenarios selected!"
+        exit 1
+    fi
+    
+    if [[ ${#PROFILES[@]} -eq 0 ]]; then
+        log_error "No profiles selected!"
+        exit 1
+    fi
+    
     local total_tests=$((${#SCENARIOS[@]} * ${#PROFILES[@]}))
     local current_test=0
     
     log_info "Starting test execution: ${#SCENARIOS[@]} scenarios × ${#PROFILES[@]} profiles = $total_tests tests"
+    log_debug "Scenarios selected: ${SCENARIOS[*]}"
+    log_debug "Profiles selected: ${PROFILES[*]}"
+    log_debug "RPC URLs: $RPC_URLS_STR"
     
     for scenario in "${SCENARIOS[@]}"; do
+        log_debug "Processing scenario: $scenario"
         if ! scenario_prepare "$scenario"; then
             log_warn "Skipping $scenario (required variable not provided)"
             continue
         fi
         
         for profile in "${PROFILES[@]}"; do
-            ((current_test++))
+            log_debug "About to increment current_test: $current_test"
+            current_test=$((current_test + 1))
+            log_debug "After increment current_test: $current_test"
             
             printf '\n%s▶ [%d/%d] %s | %s%s\n' \
                 "$BOLD$CYAN" "$current_test" "$total_tests" \

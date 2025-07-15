@@ -440,7 +440,6 @@ function post(url, body, options = {}) {
     const defaultHeaders = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, deflate, br',
         'User-Agent': `k6-somnia-test/${__ENV.TEST_VERSION || '1.0.0'}`,
         'X-Request-ID': randomBytes(8).toString('hex')
     };
@@ -448,7 +447,6 @@ function post(url, body, options = {}) {
     return http.post(url, body, {
         headers: { ...defaultHeaders, ...(options.headers || {}) },
         timeout: options.timeout || REQUEST_TIMEOUT,
-        compression: 'gzip',
         redirects: 5,
         tags: options.tags || {}
     });
@@ -458,14 +456,12 @@ function post(url, body, options = {}) {
 function get(url, options = {}) {
     const defaultHeaders = {
         'Accept': 'application/json',
-        'Accept-Encoding': 'gzip, deflate, br',
         'User-Agent': `k6-somnia-test/${__ENV.TEST_VERSION || '1.0.0'}`
     };
     
     return http.get(url, {
         headers: { ...defaultHeaders, ...(options.headers || {}) },
         timeout: options.timeout || REQUEST_TIMEOUT,
-        compression: 'gzip',
         redirects: 5,
         tags: options.tags || {}
     });
@@ -480,7 +476,8 @@ function get(url, options = {}) {
  * @param {number} retryAttempt - Current retry attempt (internal)
  */
 function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, retryAttempt = 0) {
-    const reqId = Date.now() + Math.random(); // Ensure unique ID
+    // Use string ID to ensure compatibility with all JSON-RPC servers
+    const reqId = String(Math.floor(Date.now() * 1000 + Math.random() * 1000));
     const body = rpc(reqId, method, params);
     const startTime = Date.now();
     
@@ -496,6 +493,8 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
 
     let res;
     try {
+        // Debug log the request being sent
+        console.log(`[DEBUG] Sending request to ${url}: ${body}`);
         res = post(url, body, { tags: baseTags });
     } catch (e) {
         if (retryAttempt < MAX_RETRIES) {
@@ -551,6 +550,18 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
     
     const structureOk = check(jsonResponse, structureChecks, baseTags);
     if (!structureOk) {
+        // Add detailed debug logging
+        console.error(`[DEBUG] JSON-RPC validation failed for ${method} at ${url}`);
+        console.error(`[DEBUG] Request ID: ${reqId} (type: ${typeof reqId})`);
+        console.error(`[DEBUG] Response: ${JSON.stringify(jsonResponse)}`);
+        console.error(`[DEBUG] Response ID: ${jsonResponse.id} (type: ${typeof jsonResponse.id})`);
+        console.error(`[DEBUG] Has result: ${jsonResponse.hasOwnProperty('result')}`);
+        console.error(`[DEBUG] Has error: ${jsonResponse.hasOwnProperty('error')}`);
+        console.error(`[DEBUG] jsonrpc field: ${jsonResponse.jsonrpc}`);
+        console.error(`[DEBUG] ID matches: ${jsonResponse.id === reqId}`);
+        console.error(`[DEBUG] HTTP status: ${res.status}`);
+        console.error(`[DEBUG] Response body: ${res.body}`);
+        
         return recordFailure({ ...baseTags, stage: 'rpc_structure' }, 'Invalid JSON-RPC response structure', { retryAttempt });
     }
 
@@ -831,7 +842,8 @@ function wsSub(wsUrl, rpcUrl, method, params, options = {}) {
                 }
             }, timeout);
             
-            const reqId = Date.now() + Math.random();
+            // Use string ID for WebSocket requests too
+            const reqId = String(Math.floor(Date.now() * 1000 + Math.random() * 1000));
             const requestPayload = rpc(reqId, method, params);
             
             // Send subscription request
