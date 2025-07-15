@@ -172,8 +172,8 @@ cleanup() {
     fi
     
     # Release lock
-    if [[ -f "$LOCK_FILE" ]]; then
-        rm -f "$LOCK_FILE"
+    if [[ -d "$LOCK_FILE" ]]; then
+        rm -rf "$LOCK_FILE"
     fi
     
     # Save state for resumption
