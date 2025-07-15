@@ -1,0 +1,137 @@
+{
+  "trends": {
+    "somnia_http_rtt": {
+      "name": "HTTP Round Trip Time",
+      "description": "Overall HTTP request round trip time",
+      "unit": "ms",
+      "isTime": true
+    },
+    "somnia_rpc_latency": {
+      "name": "RPC Latency",
+      "description": "JSON-RPC specific latency",
+      "unit": "ms",
+      "isTime": true
+    },
+    "somnia_ws_latency": {
+      "name": "WebSocket Latency",
+      "description": "WebSocket message latency",
+      "unit": "ms",
+      "isTime": true
+    },
+    "somnia_method_latency": {
+      "name": "Method Latency",
+      "description": "Per-method execution latency",
+      "unit": "ms",
+      "isTime": true
+    }
+  },
+  "counters": {
+    "somnia_success_count": {
+      "name": "Success Count",
+      "description": "Total successful operations"
+    },
+    "somnia_error_count": {
+      "name": "Error Count",
+      "description": "Total failed operations"
+    },
+    "somnia_retry_count": {
+      "name": "Retry Count",
+      "description": "Total retry attempts"
+    },
+    "somnia_method_success": {
+      "name": "Method Success",
+      "description": "Successful operations per method"
+    },
+    "somnia_method_errors": {
+      "name": "Method Errors",
+      "description": "Failed operations per method"
+    }
+  },
+  "rates": {
+    "somnia_error_rate": {
+      "name": "Error Rate",
+      "description": "Overall error rate"
+    },
+    "somnia_timeout_rate": {
+      "name": "Timeout Rate",
+      "description": "Request timeout rate"
+    },
+    "somnia_http_error_rate": {
+      "name": "HTTP Error Rate",
+      "description": "HTTP-level error rate"
+    }
+  },
+  "gauges": {
+    "somnia_active_ws_connections": {
+      "name": "Active WebSocket Connections",
+      "description": "Current number of active WebSocket connections"
+    },
+    "somnia_current_block_height": {
+      "name": "Current Block Height",
+      "description": "Latest observed block number"
+    },
+    "somnia_current_gas_price": {
+      "name": "Current Gas Price",
+      "description": "Latest observed gas price",
+      "unit": "wei"
+    }
+  },
+  "tags": {
+    "run_id": {
+      "description": "Unique test run identifier"
+    },
+    "scenario": {
+      "description": "Test scenario name"
+    },
+    "endpoint": {
+      "description": "RPC endpoint URL"
+    },
+    "method": {
+      "description": "RPC method name"
+    },
+    "transport": {
+      "description": "Transport type (http/websocket)"
+    },
+    "retry_attempt": {
+      "description": "Current retry attempt number"
+    },
+    "stage": {
+      "description": "Processing stage where error occurred"
+    },
+    "reason": {
+      "description": "Error reason description"
+    },
+    "wallet_addr": {
+      "description": "Wallet address used in operation"
+    },
+    "contract_addr": {
+      "description": "Contract address interacted with"
+    },
+    "tx_type": {
+      "description": "Transaction type"
+    },
+    "call_type": {
+      "description": "Contract call type (simple/heavy)"
+    },
+    "op": {
+      "description": "Operation type"
+    }
+  },
+  "thresholds": {
+    "http_rtt_p95": {
+      "metric": "somnia_http_rtt",
+      "threshold": "p(95)<5000",
+      "description": "95th percentile RTT should be under 5 seconds"
+    },
+    "error_rate_max": {
+      "metric": "somnia_error_rate",
+      "threshold": "rate<0.1",
+      "description": "Error rate should be less than 10%"
+    },
+    "timeout_rate_max": {
+      "metric": "somnia_timeout_rate",
+      "threshold": "rate<0.05",
+      "description": "Timeout rate should be less than 5%"
+    }
+  }
+}

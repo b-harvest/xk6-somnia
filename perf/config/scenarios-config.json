@@ -1,0 +1,246 @@
+{
+  "scenarios": {
+    "S1_BlockNumber": {
+      "name": "Block Number Query",
+      "description": "Tests eth_blockNumber RPC method performance",
+      "category": "basic",
+      "method": "eth_blockNumber",
+      "params": [],
+      "validation": {
+        "type": "string",
+        "startsWith": "0x"
+      }
+    },
+    "S2_ChainId": {
+      "name": "Chain ID Query",
+      "description": "Tests eth_chainId RPC method performance",
+      "category": "basic",
+      "method": "eth_chainId",
+      "params": [],
+      "validation": {
+        "type": "string",
+        "startsWith": "0x",
+        "validateChainId": true
+      }
+    },
+    "S3_GetBalance": {
+      "name": "Get Balance",
+      "description": "Tests eth_getBalance RPC method performance",
+      "category": "basic",
+      "method": "eth_getBalance",
+      "requiresWallet": true,
+      "validation": {
+        "type": "string",
+        "startsWith": "0x"
+      }
+    },
+    "S4_GetCode": {
+      "name": "Get Code",
+      "description": "Tests eth_getCode RPC method performance",
+      "category": "basic",
+      "method": "eth_getCode",
+      "requiresWallet": true,
+      "validation": {
+        "type": "string"
+      }
+    },
+    "S5_EthCallSimple": {
+      "name": "Simple Contract Call",
+      "description": "Tests eth_call with simple contract function",
+      "category": "contract",
+      "method": "eth_call",
+      "requiresContract": true,
+      "callType": "simple",
+      "validation": {
+        "type": "string",
+        "startsWith": "0x"
+      }
+    },
+    "S6_EthCallHeavy": {
+      "name": "Heavy Contract Call",
+      "description": "Tests eth_call with computationally heavy contract function",
+      "category": "contract",
+      "method": "eth_call",
+      "requiresContract": true,
+      "callType": "heavy",
+      "validation": {
+        "type": "string",
+        "startsWith": "0x"
+      }
+    },
+    "S7_GetLogsSmall": {
+      "name": "Get Logs (Small Range)",
+      "description": "Tests eth_getLogs with small block range",
+      "category": "logs",
+      "method": "eth_getLogs",
+      "dynamicBlockRange": true,
+      "validation": {
+        "type": "array"
+      }
+    },
+    "S8_GetLogsRange": {
+      "name": "Get Logs (Custom Range)",
+      "description": "Tests eth_getLogs with custom block range",
+      "category": "logs",
+      "method": "eth_getLogs",
+      "customRange": true,
+      "validation": {
+        "type": "array"
+      }
+    },
+    "S9_GetBlockLight": {
+      "name": "Get Block (Light)",
+      "description": "Tests eth_getBlockByNumber without transaction details",
+      "category": "blocks",
+      "method": "eth_getBlockByNumber",
+      "includeTransactions": false,
+      "validation": {
+        "type": "object"
+      }
+    },
+    "S10_GetBlockFull": {
+      "name": "Get Block (Full)",
+      "description": "Tests eth_getBlockByNumber with full transaction details",
+      "category": "blocks",
+      "method": "eth_getBlockByNumber",
+      "includeTransactions": true,
+      "validation": {
+        "type": "object"
+      }
+    },
+    "S11_SendRawTxSmall": {
+      "name": "Send Small Transaction",
+      "description": "Tests eth_sendRawTransaction with simple ETH transfer",
+      "category": "transactions",
+      "method": "eth_sendRawTransaction",
+      "requiresWallet": true,
+      "txType": "self_transfer",
+      "validation": {
+        "type": "string",
+        "startsWith": "0x",
+        "length": 66
+      }
+    },
+    "S12_SendRawTxERC20": {
+      "name": "Send ERC20 Transaction",
+      "description": "Tests eth_sendRawTransaction with ERC20 token transfer",
+      "category": "transactions",
+      "method": "eth_sendRawTransaction",
+      "requiresWallet": true,
+      "requiresERC20": true,
+      "txType": "erc20_transfer",
+      "validation": {
+        "type": "string",
+        "startsWith": "0x",
+        "length": 66
+      }
+    },
+    "S13_PendingTxSub": {
+      "name": "Pending Transactions Subscription",
+      "description": "Tests WebSocket subscription for pending transactions",
+      "category": "websocket",
+      "method": "eth_subscribe",
+      "subscriptionType": "newPendingTransactions",
+      "transport": "websocket"
+    },
+    "S14_NewHeadSub": {
+      "name": "New Headers Subscription",
+      "description": "Tests WebSocket subscription for new block headers",
+      "category": "websocket",
+      "method": "eth_subscribe",
+      "subscriptionType": "newHeads",
+      "transport": "websocket"
+    },
+    "S15_LogsSubFilter": {
+      "name": "Logs Subscription with Filter",
+      "description": "Tests WebSocket subscription for contract logs",
+      "category": "websocket",
+      "method": "eth_subscribe",
+      "subscriptionType": "logs",
+      "requiresContract": true,
+      "transport": "websocket"
+    },
+    "S17_EstimateGas": {
+      "name": "Gas Estimation",
+      "description": "Tests eth_estimateGas for contract calls",
+      "category": "gas",
+      "method": "eth_estimateGas",
+      "requiresContract": true,
+      "validation": {
+        "type": "string",
+        "minValue": 1
+      }
+    },
+    "S18_GetTxReceipt": {
+      "name": "Get Transaction Receipt",
+      "description": "Tests eth_getTransactionReceipt",
+      "category": "transactions",
+      "method": "eth_getTransactionReceipt",
+      "requiresTxHash": true,
+      "validation": {
+        "type": "object",
+        "hasStatus": true
+      }
+    },
+    "S19_BatchCalls": {
+      "name": "Batch RPC Calls",
+      "description": "Tests batch JSON-RPC calls",
+      "category": "batch",
+      "method": "batch_eth_call",
+      "isBatch": true,
+      "validation": {
+        "type": "array",
+        "successThreshold": 0.8
+      }
+    },
+    "S20_HttpHandshake": {
+      "name": "HTTP Handshake Test",
+      "description": "Tests basic HTTP connection handshake",
+      "category": "connectivity",
+      "method": "http_handshake",
+      "transport": "http",
+      "validation": {
+        "statusRange": [200, 299],
+        "maxDuration": 5000
+      }
+    }
+  },
+  "categories": {
+    "basic": {
+      "name": "Basic RPC Methods",
+      "description": "Fundamental Ethereum RPC methods"
+    },
+    "contract": {
+      "name": "Contract Interactions",
+      "description": "Smart contract call operations"
+    },
+    "logs": {
+      "name": "Log Queries",
+      "description": "Event log retrieval operations"
+    },
+    "blocks": {
+      "name": "Block Queries",
+      "description": "Block data retrieval operations"
+    },
+    "transactions": {
+      "name": "Transaction Operations",
+      "description": "Transaction sending and querying"
+    },
+    "websocket": {
+      "name": "WebSocket Subscriptions",
+      "description": "Real-time data subscriptions"
+    },
+    "gas": {
+      "name": "Gas Operations",
+      "description": "Gas estimation and pricing"
+    },
+    "batch": {
+      "name": "Batch Operations",
+      "description": "Multiple RPC calls in single request"
+    },
+    "connectivity": {
+      "name": "Connectivity Tests",
+      "description": "Network and connection tests"
+    }
+  }
+}

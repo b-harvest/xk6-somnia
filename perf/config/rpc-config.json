@@ -1,0 +1,43 @@
+{
+  "blockchain": {
+    "chainId": 50312,
+    "defaultGasLimit": {
+      "simple": 21000,
+      "erc20": 65000,
+      "contract": 100000
+    },
+    "gasPriceMultiplier": 1.2,
+    "teardownGasPriceMultiplier": 1.1
+  },
+  "contracts": {
+    "defaultContract": "0x4C1A08C5531a78081C318467181e796842039DA9",
+    "simpleFunctionSig": "0x20965255",
+    "heavyFunctionSig": "0xc1725961",
+    "erc20TransferSig": "0xa9059cbb"
+  },
+  "tokens": {
+    "defaultDecimals": 18,
+    "defaultFundingAmount": "1000000000000000",
+    "defaultTransferAmount": "1000000000000000",
+    "erc20AirdropDivisor": 1000,
+    "erc20TransferDivisor": 10000
+  },
+  "events": {
+    "defaultLogTopic": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+  },
+  "performance": {
+    "maxRetries": 3,
+    "retryDelayMs": 1000,
+    "requestTimeout": "15s",
+    "wsTimeout": 60000,
+    "batchSize": 10,
+    "walletCount": 200
+  },
+  "validation": {
+    "httpTimeout": 30000,
+    "successThreshold": 0.8,
+    "logBlockRange": 1,
+    "blockHistoryDepth": 100,
+    "maxBlockOffset": 10001
+  }
+}
