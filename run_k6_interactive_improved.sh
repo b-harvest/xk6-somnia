@@ -235,21 +235,24 @@ acquire_lock() {
 validate_environment() {
     local errors=0
     
-    # Check required binaries
-    for cmd in k6 jq curl; do
+    # Check required binaries (skip k6 since we'll check for local binary separately)
+    for cmd in jq curl; do
         if ! command -v "$cmd" &>/dev/null; then
             log_error "Required command '$cmd' not found"
             ((errors++))
         fi
     done
     
-    # Validate k6 binary path
+    # Validate k6 binary path - prefer local ./k6 binary
     if [[ ! -x "${K6_BIN:-}" ]]; then
-        if command -v k6 &>/dev/null; then
+        if [[ -x "./k6" ]]; then
+            K6_BIN="./k6"
+            log_info "Using local k6 binary: $K6_BIN"
+        elif command -v k6 &>/dev/null; then
             K6_BIN=$(command -v k6)
-            log_info "Using k6 binary: $K6_BIN"
+            log_info "Using system k6 binary: $K6_BIN"
         else
-            log_error "k6 binary not found"
+            log_error "k6 binary not found (neither ./k6 nor system k6)"
             ((errors++))
         fi
     fi
