@@ -12,8 +12,7 @@ set -euo pipefail
 # Debug trap for errors with better context
 trap 'echo "Error on line $LINENO: Command failed with exit code $?" >&2; echo "Last command: ${BASH_COMMAND:-unknown}" >&2' ERR
 
-# Enable extended debugging if DEBUG is set
-[[ "${DEBUG:-0}" == "1" ]] && set -x
+# Debug will be enabled after parsing command line arguments
 
 # Ensure compatibility with both bash and zsh
 if [[ -n "${ZSH_VERSION:-}" ]]; then
@@ -57,11 +56,11 @@ else
 fi
 
 # Logging functions
-log_info()    { echo -e "${BLUE}[INFO]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"; }
-log_warn()    { echo -e "${YELLOW}[WARN]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"; }
-log_error()   { echo -e "${RED}[ERROR]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE" >&2; }
-log_debug()   { [[ "${DEBUG:-0}" == "1" ]] && echo -e "${MAGENTA}[DEBUG]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | tee -a "$LOG_FILE"; }
+log_info()    { echo -e "${BLUE}[INFO]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | ${LOG_FILE:+tee -a "$LOG_FILE" ||} cat; }
+log_success() { echo -e "${GREEN}[SUCCESS]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | ${LOG_FILE:+tee -a "$LOG_FILE" ||} cat; }
+log_warn()    { echo -e "${YELLOW}[WARN]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | ${LOG_FILE:+tee -a "$LOG_FILE" ||} cat; }
+log_error()   { echo -e "${RED}[ERROR]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | ${LOG_FILE:+tee -a "$LOG_FILE" ||} cat >&2; }
+log_debug()   { [[ "${DEBUG:-0}" == "1" ]] || return 0; echo -e "${MAGENTA}[DEBUG]${RESET} $(date '+%Y-%m-%d %H:%M:%S') - $*" | ${LOG_FILE:+tee -a "$LOG_FILE" ||} cat; }
 
 ###############################################################################
 # 1. System checks and initialization
@@ -102,9 +101,9 @@ init_environment() {
         fi
     fi
     
-    # Set process limits
-    ulimit -n 65536  # Increase file descriptors for high connection scenarios
-    ulimit -u 32768  # Increase max user processes
+    # Set process limits (non-fatal if they fail)
+    ulimit -n 65536 2>/dev/null || log_warn "Could not increase file descriptor limit"
+    ulimit -u 32768 2>/dev/null || log_warn "Could not increase user process limit"
 }
 
 check_system_resources() {
@@ -752,14 +751,17 @@ OPTIONS:
     -h          Show this help message
     -d          Enable debug mode
     -v          Enable verbose output
+    -n          Non-interactive mode (use defaults)
     -s SCENARIO Filter to specific scenario
     -p PROFILE  Filter to specific profile
     -r STATE    Resume from saved state file
 
 EXAMPLES:
     $SCRIPT_NAME                    # Interactive mode
+    $SCRIPT_NAME -n                 # Non-interactive mode (use defaults)
     $SCRIPT_NAME -s S1_BlockNumber  # Run specific scenario
     $SCRIPT_NAME -p baseline        # Run specific profile
+    $SCRIPT_NAME -n -s S1_BlockNumber -p baseline  # Non-interactive with filters
     $SCRIPT_NAME -d                 # Debug mode
 
 ENVIRONMENT:
@@ -778,13 +780,15 @@ main() {
     local RESUME_FROM=""
     local DEBUG=0
     local VERBOSE=0
+    local NON_INTERACTIVE=0
     
     # Parse options using getopts
-    while getopts ":hdvs:p:r:" opt; do
+    while getopts ":hdvns:p:r:" opt; do
         case $opt in
             h) print_usage ;;
             d) DEBUG=1 ;;
             v) VERBOSE=1 ;;
+            n) NON_INTERACTIVE=1 ;;
             s) SCENARIO_FILTER="$OPTARG" ;;
             p) PROFILE_FILTER="$OPTARG" ;;
             r) RESUME_FROM="$OPTARG" ;;
@@ -800,6 +804,9 @@ main() {
         # zsh
         shift $((OPTIND-1)) 2>/dev/null || shift $(($OPTIND-1))
     fi
+    
+    # Enable debug mode if requested
+    [[ $DEBUG -eq 1 ]] && set -x
     
     # Initialize environment
     init_environment
@@ -846,36 +853,44 @@ main() {
         S17_EstimateGas S18_GetTxReceipt S19_BatchCalls S20_HttpHandshake
     )
     
-    # Interactive prompts for required variables
-    if ! ask_reuse PRIVATE_KEY "PRIVATE_KEY"; then
-        prompt_secret PRIVATE_KEY "Enter PRIVATE_KEY (hex, no 0x)"
-    fi
-    
-    if ! ask_reuse WALLET_ADDRESS "WALLET_ADDRESS"; then
-        prompt_plain WALLET_ADDRESS "Enter WALLET_ADDRESS (0x…)"
-    fi
-    
-    if ! ask_reuse INFLUXDB "INFLUXDB URL"; then
-        prompt_plain INFLUXDB "Enter INFLUXDB URL (http://host:8086)"
-    fi
-    
-    if ! ask_reuse K6_INFLUXDB_TOKEN "K6_INFLUXDB_TOKEN"; then
-        prompt_secret K6_INFLUXDB_TOKEN "Enter K6 InfluxDB token"
-    fi
-    
-    if ! ask_reuse K6_INFLUXDB_ORGANIZATION "K6_INFLUXDB_ORGANIZATION"; then
-        prompt_plain K6_INFLUXDB_ORGANIZATION "Enter K6 InfluxDB organization"
-    fi
-    
-    if ! ask_reuse K6_INFLUXDB_BUCKET "K6_INFLUXDB_BUCKET"; then
-        prompt_plain K6_INFLUXDB_BUCKET "Enter K6 InfluxDB bucket"
+    # Interactive prompts for required variables (skip in non-interactive mode)
+    if [[ $NON_INTERACTIVE -eq 0 ]]; then
+        if ! ask_reuse PRIVATE_KEY "PRIVATE_KEY"; then
+            prompt_secret PRIVATE_KEY "Enter PRIVATE_KEY (hex, no 0x)"
+        fi
+        
+        if ! ask_reuse WALLET_ADDRESS "WALLET_ADDRESS"; then
+            prompt_plain WALLET_ADDRESS "Enter WALLET_ADDRESS (0x…)"
+        fi
+        
+        if ! ask_reuse INFLUXDB "INFLUXDB URL"; then
+            prompt_plain INFLUXDB "Enter INFLUXDB URL (http://host:8086)"
+        fi
+        
+        if ! ask_reuse K6_INFLUXDB_TOKEN "K6_INFLUXDB_TOKEN"; then
+            prompt_secret K6_INFLUXDB_TOKEN "Enter K6 InfluxDB token"
+        fi
+        
+        if ! ask_reuse K6_INFLUXDB_ORGANIZATION "K6_INFLUXDB_ORGANIZATION"; then
+            prompt_plain K6_INFLUXDB_ORGANIZATION "Enter K6 InfluxDB organization"
+        fi
+        
+        if ! ask_reuse K6_INFLUXDB_BUCKET "K6_INFLUXDB_BUCKET"; then
+            prompt_plain K6_INFLUXDB_BUCKET "Enter K6 InfluxDB bucket"
+        fi
+    else
+        log_info "Non-interactive mode: Using environment variables from .k6_env"
     fi
     
     # Check InfluxDB connection
     if ! check_influxdb_connection; then
-        log_warn "InfluxDB connection check failed. Continue anyway? (y/N)"
-        read -r ans
-        [[ ! $ans =~ ^[Yy]$ ]] && exit 1
+        if [[ $NON_INTERACTIVE -eq 1 ]]; then
+            log_warn "InfluxDB connection check failed. Continuing in non-interactive mode."
+        else
+            log_warn "InfluxDB connection check failed. Continue anyway? (y/N)"
+            read -r ans
+            [[ ! $ans =~ ^[Yy]$ ]] && exit 1
+        fi
     fi
     
     # Setup k6 output configuration
@@ -884,11 +899,16 @@ main() {
     log_success "Using xk6-influxdb output → $INFLUXDB (${K6_INFLUXDB_BUCKET})"
     
     # RPC endpoints selection
-    read -rp $'\nRPC endpoints (comma-separated, Enter=defaults): ' RPC_INPUT
-    if [[ -z $RPC_INPUT ]]; then
+    if [[ $NON_INTERACTIVE -eq 1 ]]; then
+        log_info "Non-interactive mode: Using default RPC endpoints"
         RPCS=("${DEFAULT_RPCS[@]}")
     else
-        IFS=',' read -r -a RPCS <<< "${RPC_INPUT// /}"
+        read -rp $'\nRPC endpoints (comma-separated, Enter=defaults): ' RPC_INPUT
+        if [[ -z $RPC_INPUT ]]; then
+            RPCS=("${DEFAULT_RPCS[@]}")
+        else
+            IFS=',' read -r -a RPCS <<< "${RPC_INPUT// /}"
+        fi
     fi
     
     # Validate RPC endpoints
@@ -899,23 +919,34 @@ main() {
     done
     
     # Profile and scenario selection
-    if [[ -n $PROFILE_FILTER ]]; then
+    if [[ -n "$PROFILE_FILTER" ]]; then
         PROFILES=("$PROFILE_FILTER")
+    elif [[ $NON_INTERACTIVE -eq 1 ]]; then
+        log_info "Non-interactive mode: Using baseline profile"
+        PROFILES=("baseline")
     else
         choose_multi DEFAULT_PROFILES "Load profiles"
         PROFILES=("${SEL[@]}")
     fi
     
-    if [[ -n $SCENARIO_FILTER ]]; then
+    if [[ -n "$SCENARIO_FILTER" ]]; then
         SCENARIOS=("$SCENARIO_FILTER")
+    elif [[ $NON_INTERACTIVE -eq 1 ]]; then
+        log_info "Non-interactive mode: Using S1_BlockNumber scenario"
+        SCENARIOS=("S1_BlockNumber")
     else
         choose_multi DEFAULT_SCENARIOS "Scenarios"
         SCENARIOS=("${SEL[@]}")
     fi
     
     # VUs per RPC configuration
-    read -rp $'\nVUs per RPC endpoint [default 1]: ' tmp
-    PER_RPC_VU="${tmp:-1}"
+    if [[ $NON_INTERACTIVE -eq 1 ]]; then
+        log_info "Non-interactive mode: Using 1 VU per RPC endpoint"
+        PER_RPC_VU=1
+    else
+        read -rp $'\nVUs per RPC endpoint [default 1]: ' tmp
+        PER_RPC_VU="${tmp:-1}"
+    fi
     
     if ! validate_numeric "$PER_RPC_VU" "VUs per RPC" 1 1000; then
         exit 1
@@ -928,6 +959,7 @@ main() {
     SLEEP_SCENARIOS="${SLEEP_SCENARIOS:-600}"
     
     # Main execution loop
+    log_info "DEBUG: Checking arrays..."
     log_debug "SCENARIOS array size: ${#SCENARIOS[@]}"
     log_debug "PROFILES array size: ${#PROFILES[@]}"
     
@@ -941,6 +973,8 @@ main() {
         log_error "No profiles selected!"
         exit 1
     fi
+    
+    log_info "DEBUG: Arrays validated successfully"
     
     local total_tests=$((${#SCENARIOS[@]} * ${#PROFILES[@]}))
     local current_test=0
@@ -972,9 +1006,13 @@ main() {
                 log_success "Finished $scenario @ $profile"
             else
                 log_error "Failed $scenario @ $profile"
-                # Ask whether to continue
-                read -rp "Continue with remaining tests? (Y/n): " ans
-                [[ $ans =~ ^[Nn]$ ]] && exit 1
+                # Ask whether to continue (skip in non-interactive mode)
+                if [[ $NON_INTERACTIVE -eq 0 ]]; then
+                    read -rp "Continue with remaining tests? (Y/n): " ans
+                    [[ $ans =~ ^[Nn]$ ]] && exit 1
+                else
+                    log_warn "Test failed in non-interactive mode, continuing..."
+                fi
             fi
             
             if [[ $current_test -lt $total_tests ]]; then

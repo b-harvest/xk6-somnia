@@ -493,8 +493,8 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
 
     let res;
     try {
-        // Debug log the request being sent
-        console.log(`[DEBUG] Sending request to ${url}: ${body}`);
+        // Debug log the request being sent (disabled)
+        // console.log(`[DEBUG] Sending request to ${url}: ${body}`);
         res = post(url, body, { tags: baseTags });
     } catch (e) {
         if (retryAttempt < MAX_RETRIES) {
