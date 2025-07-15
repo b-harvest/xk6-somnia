@@ -1,3 +1,6 @@
 .idea/
 .k6_env
 k6
+results/
+logs/
+grafana/
