@@ -266,7 +266,7 @@ function profile(name, vus) {
                 rate: 10000,
                 timeUnit: '1s',
                 duration: '10m',
-                preAllocatedVUs: Math.max(20000, vus * 6),
+                // preAllocatedVUs: Math.max(20000, vus * 6),
             };
         case 'steady_12k':
             return {
@@ -1026,7 +1026,7 @@ export function main_scenario(data) {
             
             const fromHex = '0x' + fromBlock.toString(16);
             const toHex = '0x' + toBlock.toString(16);
-            
+
             return jsonCall(
                 rpcUrl,
                 'eth_getLogs',
