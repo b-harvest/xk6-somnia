@@ -69,6 +69,29 @@ const RETRY_DELAY_MS = Number(__ENV.RETRY_DELAY_MS || 1000);
 const REQUEST_TIMEOUT = __ENV.REQUEST_TIMEOUT || '15s';
 const WS_TIMEOUT = Number(__ENV.WS_TIMEOUT || 60000);
 
+// Parse timeout value (handle both string and number formats)
+function parseTimeout(timeoutValue) {
+    if (typeof timeoutValue === 'number') {
+        return timeoutValue;
+    }
+    if (typeof timeoutValue === 'string') {
+        const match = timeoutValue.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/);
+        if (!match) {
+            throw new Error(`Invalid timeout format: ${timeoutValue}`);
+        }
+        const value = parseFloat(match[1]);
+        const unit = match[2] || 'ms';
+        switch (unit) {
+            case 'ms': return value;
+            case 's': return value * 1000;
+            case 'm': return value * 60 * 1000;
+            default: throw new Error(`Unknown timeout unit: ${unit}`);
+        }
+    }
+    throw new Error(`Invalid timeout type: ${typeof timeoutValue}`);
+}
+
+const PARSED_TIMEOUT_MS = parseTimeout(REQUEST_TIMEOUT);
 const VU_COUNT = Math.max(1, RPC_URLS.length * PER_RPC_VU);
 
 /* ============================================================================
@@ -260,62 +283,115 @@ function profile(name, vus) {
                 duration: '10m',
                 preAllocatedVUs: Math.max(100, vus * 6),
             };
+        case 'steady_8k':
+            return {
+                executor: 'constant-arrival-rate',
+                rate: 8000,
+                timeUnit: '1s',
+                duration: '10m',
+                preAllocatedVUs: Math.max(100, vus * 2),
+            };
         case 'steady_10k':
+            const rate        = 10_000;
+            const avgLatency  = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
-                rate: 10000,
+                rate: rate,
                 timeUnit: '1s',
                 duration: '10m',
-                preAllocatedVUs: Math.max(20000, vus * 2),
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),
+                maxVUs:           Math.ceil(concurrency * 2),
             };
-        case 'steady_12k':
+        // steady_12k: sustained 12 000 req/s for 10 minutes
+        case 'steady_12k': {
+            const rate        = 12_000;
+            const avgLatency  = 0.2;                         // assume 200 ms avg response
+            const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
-                rate: 12000,
-                timeUnit: '1s',
-                duration: '10m',
-                preAllocatedVUs: Math.max(24000, vus * 6),
+                rate:       rate,
+                timeUnit:  '1s',
+                duration:  '10m',
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),  // 20% buffer
+                maxVUs:           Math.ceil(concurrency * 2)    // up to 2×
             };
-        case 'steady_13k':
+        }
+
+        // steady_13k: sustained 13 000 req/s for 10 minutes
+        case 'steady_13k': {
+            const rate        = 13_000;
+            const avgLatency  = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
-                rate: 13000,
-                timeUnit: '1s',
-                duration: '10m',
-                preAllocatedVUs: Math.max(26000, vus * 6),
+                rate:       rate,
+                timeUnit:  '1s',
+                duration:  '10m',
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),
+                maxVUs:           Math.ceil(concurrency * 2)
             };
-        case 'steady_14k':
+        }
+
+        // steady_14k: sustained 14 000 req/s for 10 minutes
+        case 'steady_14k': {
+            const rate        = 14_000;
+            const avgLatency  = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
-                rate: 14000,
-                timeUnit: '1s',
-                duration: '10m',
-                preAllocatedVUs: Math.max(28000, vus * 6),
+                rate:       rate,
+                timeUnit:  '1s',
+                duration:  '10m',
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),
+                maxVUs:           Math.ceil(concurrency * 2)
             };
-        case 'steady_15k':
+        }
+
+        // steady_15k: sustained 15 000 req/s for 10 minutes
+        case 'steady_15k': {
+            const rate        = 15_000;
+            const avgLatency  = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
-                rate: 15000,
-                timeUnit: '1s',
-                duration: '10m',
-                preAllocatedVUs: Math.max(30000, vus * 6),
+                rate:       rate,
+                timeUnit:  '1s',
+                duration:  '10m',
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),
+                maxVUs:           Math.ceil(concurrency * 2)
             };
-        case 'steady_17k':
+        }
+
+        // steady_17k: sustained 17 000 req/s for 10 minutes
+        case 'steady_17k': {
+            const rate        = 17_000;
+            const avgLatency  = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
-                rate: 17000,
-                timeUnit: '1s',
-                duration: '10m',
-                preAllocatedVUs: Math.max(34000, vus * 6),
+                rate:       rate,
+                timeUnit:  '1s',
+                duration:  '10m',
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),
+                maxVUs:           Math.ceil(concurrency * 2)
             };
-        case 'steady_20k':
+        }
+
+        // steady_20k: sustained 20 000 req/s for 10 minutes
+        case 'steady_20k': {
+            const rate        = 20_000;
+            const avgLatency  = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
-                rate: 20000,
-                timeUnit: '1s',
-                duration: '10m',
-                preAllocatedVUs: Math.max(40000, vus * 6),
+                rate:       rate,
+                timeUnit:  '1s',
+                duration:  '10m',
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),
+                maxVUs:           Math.ceil(concurrency * 2)
             };
+        }
         default:
             throw new Error(`Unknown LOAD_PROFILE '${name}'`);
     }
@@ -362,6 +438,11 @@ const methodLatency = new Trend('somnia_method_latency', true);
 const methodSuccess = new Counter('somnia_method_success');
 const methodErrors = new Counter('somnia_method_errors');
 
+// Timeout-specific metrics
+const timeoutCount = new Counter('somnia_timeout_count');
+const timeoutByMethod = new Counter('somnia_timeout_by_method');
+const timeoutLatency = new Trend('somnia_timeout_latency', true);
+
 // Metrics helper functions
 function addRTT(ms, tags) {
     rtt.add(ms, tags);
@@ -383,92 +464,257 @@ function recordSuccess(tags) {
 }
 
 /**
- * Records failure metrics and logs error details
+ * Enhanced timeout detection function
+ * @param {object} response - HTTP response object
+ * @param {number} requestStartTime - Request start timestamp
+ * @param {number} timeoutMs - Configured timeout in milliseconds
+ * @returns {object} Timeout detection result
+ */
+function detectTimeout(response, requestStartTime, timeoutMs) {
+    const actualDuration = Date.now() - requestStartTime;
+    const timeoutThreshold = timeoutMs * 0.95; // 95% of configured timeout
+
+    // Check multiple timeout indicators
+    const indicators = {
+        // k6 timeout error codes
+        error_code_timeout: response.error_code === 1050, // k6 timeout error
+
+        // HTTP status indicating timeout
+        status_timeout: response.status === 0 && actualDuration >= timeoutThreshold,
+
+        // Request duration exceeds threshold
+        duration_timeout: actualDuration >= timeoutThreshold,
+
+        // Check for timeout-related error messages
+        body_timeout: response.body && (
+            response.body.includes('timeout') ||
+            response.body.includes('timed out') ||
+            response.body.includes('request timeout') ||
+            response.body.includes('gateway timeout')
+        ),
+
+        // Check specific HTTP status codes for timeouts
+        gateway_timeout: response.status === 504,
+        request_timeout: response.status === 408,
+
+        // No response received within time limit
+        no_response: !response.status && actualDuration >= timeoutThreshold
+    };
+
+    const isTimeout = Object.values(indicators).some(Boolean);
+    const timeoutReasons = Object.entries(indicators)
+        .filter(([_, value]) => value)
+        .map(([key, _]) => key);
+
+    return {
+        isTimeout,
+        reasons: timeoutReasons,
+        actualDuration,
+        threshold: timeoutThreshold,
+        indicators
+    };
+}
+
+/**
+ * Records failure metrics and logs error details with enhanced timeout detection
  * @param {object} tags - Base tags for metrics
  * @param {string} reason - Failure reason message
- * @param {object} options - Additional options (retry info, etc.)
+ * @param {object} options - Additional options (retry info, response object, etc.)
  */
 function recordFailure(tags, reason, options = {}) {
-    const enrichedTags = { 
-        ...tags, 
+    const enrichedTags = {
+        ...tags,
         reason: reason.slice(0, 100), // Limit reason length
         retry_attempt: options.retryAttempt || 0
     };
-    
+
+    // Enhanced timeout detection
+    let isTimeout = options.isTimeout || false;
+    let timeoutDetails = null;
+
+    if (options.response && options.requestStartTime) {
+        const timeoutDetection = detectTimeout(
+            options.response,
+            options.requestStartTime,
+            options.timeoutMs || PARSED_TIMEOUT_MS
+        );
+
+        if (timeoutDetection.isTimeout) {
+            isTimeout = true;
+            timeoutDetails = timeoutDetection;
+
+            // Add timeout-specific tags
+            enrichedTags.timeout_type = timeoutDetection.reasons.join(',');
+            enrichedTags.actual_duration = timeoutDetection.actualDuration;
+            enrichedTags.timeout_threshold = timeoutDetection.threshold;
+
+            // Record timeout-specific metrics
+            timeoutCount.add(1, enrichedTags);
+            timeoutLatency.add(timeoutDetection.actualDuration, enrichedTags);
+
+            if (tags.method) {
+                timeoutByMethod.add(1, {
+                    ...enrichedTags,
+                    method: tags.method,
+                    timeout_reasons: timeoutDetection.reasons.join('|')
+                });
+            }
+        }
+    }
+
     errorCount.add(1, enrichedTags);
     errorRate.add(1, enrichedTags);
-    
+
     if (tags.method) {
         methodErrors.add(1, enrichedTags);
     }
-    
-    if (options.isTimeout) {
+
+    if (isTimeout) {
         timeoutRate.add(1, enrichedTags);
+        // Update reason to include timeout information
+        if (timeoutDetails) {
+            reason = `TIMEOUT: ${reason} (duration: ${timeoutDetails.actualDuration}ms, threshold: ${timeoutDetails.threshold}ms, indicators: ${timeoutDetails.reasons.join(', ')})`;
+        }
     }
-    
+
     if (options.isHttpError) {
         httpErrorRate.add(1, enrichedTags);
     }
-    
-    // Log with structured format for better observability
-    console.error(JSON.stringify({
+
+    // Enhanced structured logging with timeout details
+    const logEntry = {
         timestamp: new Date().toISOString(),
-        level: 'ERROR',
+        level: isTimeout ? 'WARN' : 'ERROR',
+        type: isTimeout ? 'TIMEOUT' : 'ERROR',
         scenario: tags.scenario,
         method: tags.method,
         endpoint: tags.endpoint,
         reason: reason,
         tags: enrichedTags
-    }));
+    };
+
+    if (timeoutDetails) {
+        logEntry.timeout_details = {
+            actual_duration_ms: timeoutDetails.actualDuration,
+            threshold_ms: timeoutDetails.threshold,
+            reasons: timeoutDetails.reasons,
+            indicators: timeoutDetails.indicators
+        };
+    }
+
+    console.error(JSON.stringify(logEntry));
 }
 
 /* ============================================================================
- * 4. ENHANCED JSON-RPC AND HTTP HELPERS
+ * 4. ENHANCED JSON-RPC AND HTTP HELPERS WITH TIMEOUT HANDLING
  * ========================================================================== */
 
 // Generate JSON-RPC request payload
 function rpc(id, method, params) {
-    return JSON.stringify({ 
-        jsonrpc: '2.0', 
-        id, 
-        method, 
-        params: params || [] 
+    return JSON.stringify({
+        jsonrpc: '2.0',
+        id,
+        method,
+        params: params || []
     });
 }
 
-// Enhanced HTTP POST with better error handling and headers
+// Enhanced HTTP POST with comprehensive timeout handling
 function post(url, body, options = {}) {
+    const requestId = randomBytes(8).toString('hex');
     const defaultHeaders = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'User-Agent': `k6-somnia-test/${__ENV.TEST_VERSION || '1.0.0'}`,
-        'X-Request-ID': randomBytes(8).toString('hex')
+        'X-Request-ID': requestId
     };
-    
-    return http.post(url, body, {
+
+    const requestOptions = {
         headers: { ...defaultHeaders, ...(options.headers || {}) },
         timeout: options.timeout || REQUEST_TIMEOUT,
         redirects: 5,
-        tags: options.tags || {}
-    });
+        tags: { ...options.tags, request_id: requestId }
+    };
+
+    const startTime = Date.now();
+    let response;
+
+    try {
+        response = http.post(url, body, requestOptions);
+    } catch (error) {
+        // Handle immediate errors (DNS resolution, connection refused, etc.)
+        const duration = Date.now() - startTime;
+        const isTimeout = error.message && (
+            error.message.includes('timeout') ||
+            error.message.includes('timed out') ||
+            duration >= PARSED_TIMEOUT_MS * 0.95
+        );
+
+        throw {
+            ...error,
+            isTimeout,
+            duration,
+            requestId
+        };
+    }
+
+    // Add timing and timeout detection metadata to response
+    response._requestStartTime = startTime;
+    response._requestDuration = Date.now() - startTime;
+    response._requestId = requestId;
+    response._timeoutThreshold = parseTimeout(requestOptions.timeout);
+
+    return response;
 }
 
-// HTTP GET with similar enhancements
+// Enhanced HTTP GET with timeout handling
 function get(url, options = {}) {
+    const requestId = randomBytes(8).toString('hex');
     const defaultHeaders = {
         'Accept': 'application/json',
-        'User-Agent': `k6-somnia-test/${__ENV.TEST_VERSION || '1.0.0'}`
+        'User-Agent': `k6-somnia-test/${__ENV.TEST_VERSION || '1.0.0'}`,
+        'X-Request-ID': requestId
     };
-    
-    return http.get(url, {
+
+    const requestOptions = {
         headers: { ...defaultHeaders, ...(options.headers || {}) },
         timeout: options.timeout || REQUEST_TIMEOUT,
         redirects: 5,
-        tags: options.tags || {}
-    });
+        tags: { ...options.tags, request_id: requestId }
+    };
+
+    const startTime = Date.now();
+    let response;
+
+    try {
+        response = http.get(url, requestOptions);
+    } catch (error) {
+        const duration = Date.now() - startTime;
+        const isTimeout = error.message && (
+            error.message.includes('timeout') ||
+            error.message.includes('timed out') ||
+            duration >= PARSED_TIMEOUT_MS * 0.95
+        );
+
+        throw {
+            ...error,
+            isTimeout,
+            duration,
+            requestId
+        };
+    }
+
+    // Add timing and timeout detection metadata to response
+    response._requestStartTime = startTime;
+    response._requestDuration = Date.now() - startTime;
+    response._requestId = requestId;
+    response._timeoutThreshold = parseTimeout(requestOptions.timeout);
+
+    return response;
 }
+
 /**
- * Enhanced JSON-RPC call with retry logic and comprehensive error handling
+ * Enhanced JSON-RPC call with comprehensive timeout handling and retry logic
  * @param {string} url - RPC endpoint URL
  * @param {string} method - RPC method name
  * @param {array} params - RPC method parameters
@@ -481,57 +727,114 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
     const reqId = String(Math.floor(Date.now() * 1000 + Math.random() * 1000));
     const body = rpc(reqId, method, params);
     const startTime = Date.now();
-    
-    const baseTags = { 
-        run_id: RUN_ID, 
-        scenario: SCENARIO, 
+
+    const baseTags = {
+        run_id: RUN_ID,
+        scenario: SCENARIO,
         region: REGION,
-        endpoint: url, 
+        endpoint: url,
         method,
         transport: 'http',
         retry_attempt: retryAttempt,
-        ...extraTags 
+        ...extraTags
     };
 
     let res;
     try {
-        // Debug log the request being sent (disabled)
-        // console.log(`[DEBUG] Sending request to ${url}: ${body}`);
-        res = post(url, body, { tags: baseTags });
+        res = post(url, body, {
+            tags: baseTags,
+            timeout: REQUEST_TIMEOUT
+        });
     } catch (e) {
+        // Handle network-level errors and timeouts during request
+        const errorMsg = e.isTimeout ?
+            `Network timeout after ${e.duration}ms: ${e.message}` :
+            `Network error: ${e.message}`;
+
         if (retryAttempt < MAX_RETRIES) {
-            retryCount.add(1, baseTags);
+            retryCount.add(1, { ...baseTags, error_type: 'network', is_timeout: e.isTimeout });
             sleep(RETRY_DELAY_MS / 1000);
             return jsonCall(url, method, params, extraTags, expectFn, retryAttempt + 1);
         }
-        return recordFailure(baseTags, `Network error: ${e.message}`, { retryAttempt });
+
+        return recordFailure(baseTags, errorMsg, {
+            retryAttempt,
+            isTimeout: e.isTimeout,
+            response: null,
+            requestStartTime: startTime,
+            timeoutMs: PARSED_TIMEOUT_MS
+        });
     }
 
-    // Handle network-level errors
+    // Enhanced timeout detection using response metadata
+    const timeoutDetection = detectTimeout(res, startTime, PARSED_TIMEOUT_MS);
+
+    // Handle timeout scenarios
+    if (timeoutDetection.isTimeout) {
+        const timeoutMsg = `Request timeout detected - Duration: ${timeoutDetection.actualDuration}ms, Threshold: ${timeoutDetection.threshold}ms, Reasons: ${timeoutDetection.reasons.join(', ')}`;
+
+        if (retryAttempt < MAX_RETRIES) {
+            retryCount.add(1, {
+                ...baseTags,
+                error_type: 'timeout',
+                timeout_reasons: timeoutDetection.reasons.join('|'),
+                actual_duration: timeoutDetection.actualDuration
+            });
+            sleep(RETRY_DELAY_MS / 1000);
+            return jsonCall(url, method, params, extraTags, expectFn, retryAttempt + 1);
+        }
+
+        return recordFailure(baseTags, timeoutMsg, {
+            retryAttempt,
+            isTimeout: true,
+            response: res,
+            requestStartTime: startTime,
+            timeoutMs: PARSED_TIMEOUT_MS
+        });
+    }
+
+    // Handle network-level errors with improved error codes
     if (res.error_code) {
         const errorMsg = `Network error code: ${res.error_code}`;
+        const isNetworkTimeout = [1050, 1051, 1052].includes(res.error_code); // k6 timeout error codes
+
         if (retryAttempt < MAX_RETRIES) {
-            retryCount.add(1, baseTags);
+            retryCount.add(1, {
+                ...baseTags,
+                error_code: res.error_code,
+                is_network_timeout: isNetworkTimeout
+            });
             sleep(RETRY_DELAY_MS / 1000);
             return jsonCall(url, method, params, extraTags, expectFn, retryAttempt + 1);
         }
-        return recordFailure({ ...baseTags, stage: 'network', error_code: res.error_code }, errorMsg, { retryAttempt });
+
+        return recordFailure({ ...baseTags, stage: 'network', error_code: res.error_code }, errorMsg, {
+            retryAttempt,
+            isTimeout: isNetworkTimeout,
+            response: res,
+            requestStartTime: startTime
+        });
     }
 
-    // Validate HTTP response
+    // Validate HTTP response with timeout awareness
     const httpChecks = {
         'http_status_200': r => r.status === 200,
         'content_type_json': r => (r.headers['Content-Type'] || '').includes('application/json'),
         'response_body_present': r => r.body && r.body.length > 0,
-        'response_time_reasonable': r => r.timings.duration < 30000
+        'response_time_reasonable': r => r.timings.duration < (PARSED_TIMEOUT_MS * 0.8)
     };
-    
+
     const httpOk = check(res, httpChecks, baseTags);
     if (!httpOk) {
-        const errorMsg = `HTTP validation failed: status=${res.status}, content-type=${res.headers['Content-Type']}, body-length=${res.body?.length || 0}`;
-        return recordFailure({ ...baseTags, stage: 'http', status: res.status }, errorMsg, { 
-            retryAttempt, 
-            isHttpError: true 
+        const isHttpTimeout = res.status === 408 || res.status === 504 || res.status === 0;
+        const errorMsg = `HTTP validation failed: status=${res.status}, content-type=${res.headers['Content-Type']}, body-length=${res.body?.length || 0}, duration=${res._requestDuration}ms`;
+
+        return recordFailure({ ...baseTags, stage: 'http', status: res.status }, errorMsg, {
+            retryAttempt,
+            isHttpError: true,
+            isTimeout: isHttpTimeout,
+            response: res,
+            requestStartTime: startTime
         });
     }
 
@@ -540,7 +843,11 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
     try {
         jsonResponse = res.json();
     } catch (e) {
-        return recordFailure({ ...baseTags, stage: 'json_parse' }, `JSON parse error: ${e.message}`, { retryAttempt });
+        return recordFailure({ ...baseTags, stage: 'json_parse' }, `JSON parse error: ${e.message}`, {
+            retryAttempt,
+            response: res,
+            requestStartTime: startTime
+        });
     }
 
     // Validate JSON-RPC structure
@@ -549,22 +856,14 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
         'request_id_matches': v => v.id === reqId,
         'response_complete': v => v.hasOwnProperty('result') || v.hasOwnProperty('error')
     };
-    
+
     const structureOk = check(jsonResponse, structureChecks, baseTags);
     if (!structureOk) {
-        // Add detailed debug logging
-        console.error(`[DEBUG] JSON-RPC validation failed for ${method} at ${url}`);
-        console.error(`[DEBUG] Request ID: ${reqId} (type: ${typeof reqId})`);
-        console.error(`[DEBUG] Response: ${JSON.stringify(jsonResponse)}`);
-        console.error(`[DEBUG] Response ID: ${jsonResponse.id} (type: ${typeof jsonResponse.id})`);
-        console.error(`[DEBUG] Has result: ${jsonResponse.hasOwnProperty('result')}`);
-        console.error(`[DEBUG] Has error: ${jsonResponse.hasOwnProperty('error')}`);
-        console.error(`[DEBUG] jsonrpc field: ${jsonResponse.jsonrpc}`);
-        console.error(`[DEBUG] ID matches: ${jsonResponse.id === reqId}`);
-        console.error(`[DEBUG] HTTP status: ${res.status}`);
-        console.error(`[DEBUG] Response body: ${res.body}`);
-        
-        return recordFailure({ ...baseTags, stage: 'rpc_structure' }, 'Invalid JSON-RPC response structure', { retryAttempt });
+        return recordFailure({ ...baseTags, stage: 'rpc_structure' }, 'Invalid JSON-RPC response structure', {
+            retryAttempt,
+            response: res,
+            requestStartTime: startTime
+        });
     }
 
     // Handle RPC errors - for eth_estimateGas, we treat RPC errors as successful responses
@@ -576,7 +875,7 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
             rpc_error_code: rpcError.code,
             rpc_error_message: String(rpcError.message).slice(0, 100)
         };
-        
+
         // For eth_estimateGas, RPC errors (including execution reverted) are expected and should not fail the test
         if (method === 'eth_estimateGas') {
             const duration = Date.now() - startTime;
@@ -584,8 +883,12 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
             addRTT(duration, errorTags);
             return { error: rpcError }; // Return the error as data, not as failure
         }
-        
-        return recordFailure(errorTags, `RPC error ${rpcError.code}: ${rpcError.message}`, { retryAttempt });
+
+        return recordFailure(errorTags, `RPC error ${rpcError.code}: ${rpcError.message}`, {
+            retryAttempt,
+            response: res,
+            requestStartTime: startTime
+        });
     }
 
     // Validate result
@@ -593,17 +896,21 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
         'result_present': v => v.hasOwnProperty('result') && v.result !== null,
         'result_expectation_met': v => expectFn(v.result)
     };
-    
+
     const resultOk = check(jsonResponse, resultChecks, baseTags);
     if (!resultOk) {
-        return recordFailure({ ...baseTags, stage: 'result_validation' }, 'Result validation failed', { retryAttempt });
+        return recordFailure({ ...baseTags, stage: 'result_validation' }, 'Result validation failed', {
+            retryAttempt,
+            response: res,
+            requestStartTime: startTime
+        });
     }
 
     // Record successful metrics
     const duration = Date.now() - startTime;
     recordSuccess(baseTags);
     addRTT(duration, baseTags);
-    
+
     // Update blockchain state metrics if applicable
     if (method === 'eth_blockNumber' && jsonResponse.result) {
         currentBlockHeight.add(Number(jsonResponse.result), baseTags);
@@ -611,7 +918,7 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
     if (method === 'eth_gasPrice' && jsonResponse.result) {
         gasPrice.add(Number(jsonResponse.result), baseTags);
     }
-    
+
     return jsonResponse.result;
 }
 
@@ -629,7 +936,7 @@ export function setup() {
     const YYYYMMDD = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
     const HHMMSS = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const runId = `run_${YYYYMMDD}_${HHMMSS}_${SCENARIO}_${PROFILE}`;
-    
+
     console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
         level: 'INFO',
@@ -638,7 +945,14 @@ export function setup() {
         scenario: SCENARIO,
         profile: PROFILE,
         wallet_count: WALLET_CNT,
-        rpc_urls: RPC_URLS.length
+        rpc_urls: RPC_URLS.length,
+        timeout_config: {
+            request_timeout: REQUEST_TIMEOUT,
+            parsed_timeout_ms: PARSED_TIMEOUT_MS,
+            ws_timeout: WS_TIMEOUT,
+            max_retries: MAX_RETRIES,
+            retry_delay_ms: RETRY_DELAY_MS
+        }
     }));
 
     if (!RPC_URLS.length) {
@@ -648,8 +962,8 @@ export function setup() {
     // Generate deterministic wallets for reproducible testing
     const wallets = Array.from({ length: WALLET_CNT }, (_, index) => {
         const acc = wallet.generateKey();
-        return { 
-            pk: acc.private_key, 
+        return {
+            pk: acc.private_key,
             addr: acc.address,
             index: index,
             nonce: 0 // Track nonce per wallet
@@ -662,18 +976,18 @@ export function setup() {
     if (WRITE_SCENARIOS.includes(SCENARIO)) {
         console.log('Funding wallets for write scenarios...');
         const fundUrl = RPC_URLS[0];
-        
+
         // Get current nonce and gas price with retries
         let baseNonce = Number(jsonCall(fundUrl, 'eth_getTransactionCount', [BASE_ADDR, 'pending'], { op: 'get_nonce' }));
         const currentGasPrice = Number(jsonCall(fundUrl, 'eth_gasPrice', [], { op: 'get_gas_price' }));
         const gasPrice = Math.floor(currentGasPrice * 1.2); // 20% buffer
-        
+
         console.log(`Base nonce: ${baseNonce}, Gas price: ${gasPrice}`);
-        
+
         // Fund wallets in batches to avoid nonce conflicts
         for (let i = 0; i < wallets.length; i += BATCH_SIZE) {
             const batch = wallets.slice(i, i + BATCH_SIZE);
-            
+
             batch.forEach((w, batchIndex) => {
                 const nonce = baseNonce + i + batchIndex;
                 const raw = ethgo.signLegacyTx({
@@ -685,24 +999,24 @@ export function setup() {
                     data: '0x',
                     chainId: CHAIN_ID
                 }, BASE_PRIV);
-                
-                const txHash = jsonCall(fundUrl, 'eth_sendRawTransaction', [raw], { 
+
+                const txHash = jsonCall(fundUrl, 'eth_sendRawTransaction', [raw], {
                     op: 'fund_wallet',
                     wallet_index: w.index,
                     nonce: nonce
                 });
-                
+
                 if (txHash) {
                     w.fundingTx = txHash;
                 }
             });
-            
+
             // Small delay between batches
             if (i + BATCH_SIZE < wallets.length) {
                 sleep(0.1);
             }
         }
-        
+
         baseNonce += wallets.length;
 
         // ERC20 token distribution for token transfer scenarios
@@ -710,17 +1024,17 @@ export function setup() {
             console.log('Distributing ERC20 tokens...');
             const tokenAmount = (BigInt(10) ** BigInt(TOKEN_DECIMALS)) / BigInt(1000); // 0.001 tokens
             const amountHex = tokenAmount.toString(16).padStart(64, '0');
-            
+
             for (let i = 0; i < wallets.length; i += BATCH_SIZE) {
                 const batch = wallets.slice(i, i + BATCH_SIZE);
-                
+
                 batch.forEach((w, batchIndex) => {
                     const nonce = baseNonce + i + batchIndex;
                     // ERC20 transfer function signature + recipient + amount
-                    const data = '0xa9059cbb' + 
-                        w.addr.replace(/^0x/, '').padStart(64, '0') + 
+                    const data = '0xa9059cbb' +
+                        w.addr.replace(/^0x/, '').padStart(64, '0') +
                         amountHex;
-                    
+
                     const raw = ethgo.signLegacyTx({
                         nonce: nonce,
                         gasPrice: gasPrice,
@@ -730,24 +1044,24 @@ export function setup() {
                         data: data,
                         chainId: CHAIN_ID
                     }, BASE_PRIV);
-                    
-                    const txHash = jsonCall(fundUrl, 'eth_sendRawTransaction', [raw], { 
+
+                    const txHash = jsonCall(fundUrl, 'eth_sendRawTransaction', [raw], {
                         op: 'token_airdrop',
                         wallet_index: w.index,
                         amount: tokenAmount.toString()
                     });
-                    
+
                     if (txHash) {
                         w.tokenAirdropTx = txHash;
                     }
                 });
-                
+
                 if (i + BATCH_SIZE < wallets.length) {
                     sleep(0.1);
                 }
             }
         }
-        
+
         // Wait for transactions to be mined
         console.log('Waiting for funding transactions to be processed...');
         sleep(5);
@@ -772,11 +1086,11 @@ function buildRawTx(url, wallet, to, value, data, options = {}) {
         op: 'get_nonce',
         wallet_addr: wallet.addr
     }));
-    
+
     // Get current gas price with buffer
     const currentGasPrice = Number(jsonCall(url, 'eth_gasPrice', [], { op: 'get_gas_price' }));
     const gasPrice = options.gasPrice || Math.floor(currentGasPrice * 1.2);
-    
+
     // Estimate gas limit based on transaction type
     let gasLimit;
     if (options.gasLimit) {
@@ -788,7 +1102,7 @@ function buildRawTx(url, wallet, to, value, data, options = {}) {
     } else {
         gasLimit = 100000; // Contract interaction
     }
-    
+
     // Build and sign transaction
     const txParams = {
         nonce: nonce,
@@ -799,7 +1113,7 @@ function buildRawTx(url, wallet, to, value, data, options = {}) {
         data: data || '0x',
         chainId: CHAIN_ID
     };
-    
+
     try {
         return ethgo.signLegacyTx(txParams, wallet.pk);
     } catch (e) {
@@ -809,7 +1123,7 @@ function buildRawTx(url, wallet, to, value, data, options = {}) {
 }
 
 /**
- * Enhanced WebSocket subscription with better connection management and error handling
+ * Enhanced WebSocket subscription with better connection management and timeout handling
  * @param {string} wsUrl - WebSocket endpoint URL
  * @param {string} rpcUrl - HTTP RPC endpoint for metrics tagging
  * @param {string} method - Subscription method
@@ -820,13 +1134,14 @@ function wsSub(wsUrl, rpcUrl, method, params, options = {}) {
     const timeout = options.timeout || WS_TIMEOUT;
     const maxRetries = options.maxRetries || 2;
     let retryCount = 0;
-    
+
     function attemptConnection() {
         const connectionId = randomBytes(4).toString('hex');
         const startTime = Date.now();
         let isConnected = false;
         let subscriptionId = null;
-        
+        let connectionTimeout = null;
+
         const baseTags = {
             run_id: RUN_ID,
             scenario: SCENARIO,
@@ -837,7 +1152,7 @@ function wsSub(wsUrl, rpcUrl, method, params, options = {}) {
             connection_id: connectionId,
             retry_attempt: retryCount
         };
-        
+
         ws.connect(wsUrl, {
             headers: {
                 'User-Agent': `k6-somnia-test/${__ENV.TEST_VERSION || '1.0.0'}`,
@@ -846,122 +1161,158 @@ function wsSub(wsUrl, rpcUrl, method, params, options = {}) {
         }, function(socket) {
             activeConnections.add(1, baseTags);
             isConnected = true;
-            
-            // Set connection timeout
-            socket.setTimeout(() => {
+
+            // Set connection timeout with proper cleanup
+            connectionTimeout = setTimeout(() => {
                 if (isConnected) {
-                    socket.close(1000, 'Timeout reached');
+                    const duration = Date.now() - startTime;
+                    console.warn(`WebSocket connection timeout after ${duration}ms: ${connectionId}`);
+
+                    // Record timeout metrics
+                    timeoutCount.add(1, { ...baseTags, timeout_type: 'websocket_connection' });
+                    timeoutLatency.add(duration, baseTags);
+                    timeoutRate.add(1, baseTags);
+
+                    socket.close(1000, 'Connection timeout');
                 }
             }, timeout);
-            
+
             // Use string ID for WebSocket requests too
             const reqId = String(Math.floor(Date.now() * 1000 + Math.random() * 1000));
             const requestPayload = rpc(reqId, method, params);
-            
+
             // Send subscription request
             socket.send(requestPayload);
-            
+
             socket.on('message', function(message) {
                 try {
                     const response = JSON.parse(message);
                     const currentTime = Date.now();
-                    
+
                     // Handle subscription confirmation
                     if (response.id === reqId) {
                         if (response.error) {
-                            recordFailure({ ...baseTags, stage: 'subscription' }, 
-                                `Subscription error: ${response.error.message}`, { retryAttempt: retryCount });
+                            recordFailure({ ...baseTags, stage: 'subscription' },
+                                `Subscription error: ${response.error.message}`, {
+                                    retryAttempt: retryCount,
+                                    response: { body: message, status: 200 },
+                                    requestStartTime: startTime
+                                });
                             socket.close();
                             return;
                         }
-                        
+
                         if (response.result) {
                             subscriptionId = response.result;
                             recordSuccess({ ...baseTags, stage: 'subscription', subscription_id: subscriptionId });
                             console.log(`WebSocket subscription established: ${subscriptionId}`);
                         }
                     }
-                    
+
                     // Handle subscription data
                     if (response.method === 'eth_subscription' && response.params) {
                         const latency = currentTime - startTime;
                         addRTT(latency, { ...baseTags, stage: 'data_received', subscription_id: subscriptionId });
                         recordSuccess({ ...baseTags, stage: 'data_received', subscription_id: subscriptionId });
-                        
+
                         // Log subscription data for debugging
                         if (__ENV.WS_DEBUG === 'true') {
                             console.log(`WS data received: ${JSON.stringify(response.params).slice(0, 200)}`);
                         }
-                        
+
                         // Close after receiving first data point for testing purposes
                         socket.close(1000, 'Data received');
                     }
                 } catch (e) {
-                    recordFailure({ ...baseTags, stage: 'message_parse' }, 
-                        `Message parse error: ${e.message}`, { retryAttempt: retryCount });
+                    recordFailure({ ...baseTags, stage: 'message_parse' },
+                        `Message parse error: ${e.message}`, {
+                            retryAttempt: retryCount,
+                            response: { body: message, status: 200 },
+                            requestStartTime: startTime
+                        });
                 }
             });
-            
+
             socket.on('open', function() {
                 console.log(`WebSocket connection opened: ${connectionId}`);
             });
-            
+
             socket.on('close', function(code, reason) {
                 isConnected = false;
                 activeConnections.add(-1, baseTags);
-                
+
+                if (connectionTimeout) {
+                    clearTimeout(connectionTimeout);
+                }
+
                 const duration = Date.now() - startTime;
                 console.log(`WebSocket connection closed: ${connectionId}, code: ${code}, reason: ${reason}, duration: ${duration}ms`);
-                
+
+                // Check if close was due to timeout
+                const isTimeoutClose = duration >= timeout * 0.95 || reason === 'Connection timeout';
+
                 // Record metrics based on close reason
-                if (code === 1000) {
+                if (code === 1000 && !isTimeoutClose) {
                     // Normal closure
                     recordSuccess({ ...baseTags, stage: 'connection_closed', close_code: code });
                 } else {
-                    // Abnormal closure
-                    recordFailure({ ...baseTags, stage: 'connection_closed', close_code: code }, 
-                        `Abnormal closure: ${reason}`, { retryAttempt: retryCount });
+                    // Abnormal closure or timeout
+                    const failureReason = isTimeoutClose ?
+                        `Connection timeout after ${duration}ms` :
+                        `Abnormal closure: ${reason}`;
+
+                    recordFailure({ ...baseTags, stage: 'connection_closed', close_code: code },
+                        failureReason, {
+                            retryAttempt: retryCount,
+                            isTimeout: isTimeoutClose,
+                            response: { status: 0, body: reason },
+                            requestStartTime: startTime,
+                            timeoutMs: timeout
+                        });
                 }
             });
-            
+
             socket.on('error', function(error) {
                 isConnected = false;
                 activeConnections.add(-1, baseTags);
-                
+
+                if (connectionTimeout) {
+                    clearTimeout(connectionTimeout);
+                }
+
+                const duration = Date.now() - startTime;
                 const errorMessage = error.message || 'Unknown WebSocket error';
-                console.error(`WebSocket error: ${connectionId}, error: ${errorMessage}`);
-                
-                recordFailure({ ...baseTags, stage: 'websocket_error' }, 
-                    `WebSocket error: ${errorMessage}`, { retryAttempt: retryCount });
-                
+                const isTimeoutError = duration >= timeout * 0.95 ||
+                    errorMessage.includes('timeout') ||
+                    errorMessage.includes('timed out');
+
+                console.error(`WebSocket error: ${connectionId}, error: ${errorMessage}, duration: ${duration}ms`);
+
+                recordFailure({ ...baseTags, stage: 'websocket_error' },
+                    `WebSocket error: ${errorMessage}`, {
+                        retryAttempt: retryCount,
+                        isTimeout: isTimeoutError,
+                        response: { status: 0, body: errorMessage },
+                        requestStartTime: startTime,
+                        timeoutMs: timeout
+                    });
+
                 // Retry on error if retries available
                 if (retryCount < maxRetries) {
                     retryCount++;
-                    retryCount.add(1, baseTags);
+                    retryCount.add(1, { ...baseTags, error_type: isTimeoutError ? 'timeout' : 'error' });
                     sleep(RETRY_DELAY_MS / 1000);
                     attemptConnection();
                 }
             });
         });
     }
-    
+
     attemptConnection();
 }
 
 /* ============================================================================
  * 6. MAIN SCENARIO EXECUTION ENGINE
- * ============================================================================
- * 
- * This function routes to the appropriate test scenario based on the
- * SCENARIO environment variable. Each scenario is optimized for testing
- * specific aspects of Ethereum RPC performance:
- * 
- * S1-S4: Basic RPC methods
- * S5-S6: Contract calls (simple/heavy)
- * S7-S10: Log and block queries
- * S11-S12: Transaction sending
- * S13-S15: WebSocket subscriptions
- * S17-S20: Advanced operations
  * ========================================================================== */
 
 export function main_scenario(data) {
@@ -974,7 +1325,7 @@ export function main_scenario(data) {
     const endpointIndex = (__VU - 1) % RPC_URLS.length;
     const rpcUrl = RPC_URLS[endpointIndex];
     const wsUrl = rpcUrl.replace(/^http/, 'ws');
-    
+
     // Assign wallet to VU (round-robin distribution)
     const walletIndex = (__VU - 1) % data.wallets.length;
     const testWallet = data.wallets[walletIndex];
@@ -982,15 +1333,15 @@ export function main_scenario(data) {
     switch (SCENARIO) {
         // Basic RPC method tests
         case 'S1_BlockNumber':
-            return jsonCall(rpcUrl, 'eth_blockNumber', [], {}, 
+            return jsonCall(rpcUrl, 'eth_blockNumber', [], {},
                 result => typeof result === 'string' && result.startsWith('0x'));
 
         case 'S2_ChainId':
-            return jsonCall(rpcUrl, 'eth_chainId', [], {}, 
+            return jsonCall(rpcUrl, 'eth_chainId', [], {},
                 result => typeof result === 'string' && parseInt(result, 16) === CHAIN_ID);
 
         case 'S3_GetBalance':
-            return jsonCall(rpcUrl, 'eth_getBalance', [testWallet.addr, 'latest'], 
+            return jsonCall(rpcUrl, 'eth_getBalance', [testWallet.addr, 'latest'],
                 { wallet_addr: testWallet.addr },
                 result => typeof result === 'string' && result.startsWith('0x'));
 
@@ -1001,13 +1352,13 @@ export function main_scenario(data) {
 
         // Smart contract interaction tests
         case 'S5_EthCallSimple':
-            return jsonCall(rpcUrl, 'eth_call', 
+            return jsonCall(rpcUrl, 'eth_call',
                 [{ to: CONTRACT, data: SIMPLE_SIG }, 'latest'],
                 { contract_addr: CONTRACT, call_type: 'simple' },
                 result => typeof result === 'string' && result.startsWith('0x'));
 
         case 'S6_EthCallHeavy':
-            return jsonCall(rpcUrl, 'eth_call', 
+            return jsonCall(rpcUrl, 'eth_call',
                 [{ to: CONTRACT, data: HEAVY_SIG }, 'latest'],
                 { contract_addr: CONTRACT, call_type: 'heavy' },
                 result => typeof result === 'string' && result.startsWith('0x'));
@@ -1019,25 +1370,25 @@ export function main_scenario(data) {
                 if (!latestHex) return null;
                 currentLogBlock = Number(latestHex) - 100; // Start from 100 blocks ago for better log coverage
             }
-            
+
             const fromBlock = currentLogBlock;
             const toBlock = currentLogBlock + Number(__ENV.LOG_BLOCK_RANGE || 1);
             currentLogBlock = toBlock + 1;
-            
+
             const fromHex = '0x' + fromBlock.toString(16);
             const toHex = '0x' + toBlock.toString(16);
 
             return jsonCall(
                 rpcUrl,
                 'eth_getLogs',
-                [{ 
-                    fromBlock: fromHex, 
-                    toBlock: toHex, 
+                [{
+                    fromBlock: fromHex,
+                    toBlock: toHex,
                     topics: [LOG_TOPIC],
                     address: __ENV.LOG_ADDRESS || undefined
                 }],
-                { 
-                    fromBlock: fromHex, 
+                {
+                    fromBlock: fromHex,
                     toBlock: toHex,
                     block_range: toBlock - fromBlock + 1
                 }
@@ -1096,8 +1447,8 @@ export function main_scenario(data) {
         case 'S11_SendRawTxSmall': {
             const transferAmount = BigInt(__ENV.TRANSFER_AMOUNT || '1000000000000000'); // 0.001 ETH
             const raw = buildRawTx(rpcUrl, testWallet, testWallet.addr, transferAmount, '0x');
-            return jsonCall(rpcUrl, 'eth_sendRawTransaction', [raw], 
-                { 
+            return jsonCall(rpcUrl, 'eth_sendRawTransaction', [raw],
+                {
                     tx_type: 'self_transfer',
                     wallet_addr: testWallet.addr,
                     amount: transferAmount.toString()
@@ -1108,16 +1459,16 @@ export function main_scenario(data) {
         case 'S12_SendRawTxERC20': {
             const tokenAmount = (BigInt(10) ** BigInt(TOKEN_DECIMALS)) / BigInt(10000);
             const encodeAmount = amount => amount.toString(16).padStart(64, '0');
-            
+
             // ERC20 transfer function call data
-            const transferData = '0xa9059cbb' + 
-                testWallet.addr.replace(/^0x/, '').padStart(64, '0') + 
+            const transferData = '0xa9059cbb' +
+                testWallet.addr.replace(/^0x/, '').padStart(64, '0') +
                 encodeAmount(tokenAmount);
-            
+
             const sender = { pk: BASE_PRIV, addr: BASE_ADDR };
             const raw = buildRawTx(rpcUrl, sender, ERC20_ADDR, 0, transferData);
-            
-            return jsonCall(rpcUrl, 'eth_sendRawTransaction', [raw], 
+
+            return jsonCall(rpcUrl, 'eth_sendRawTransaction', [raw],
                 {
                     tx_type: 'erc20_transfer',
                     token_addr: ERC20_ADDR,
@@ -1140,7 +1491,7 @@ export function main_scenario(data) {
             });
 
         case 'S15_LogsSubFilter':
-            return wsSub(wsUrl, rpcUrl, 'eth_subscribe', ['logs', { 
+            return wsSub(wsUrl, rpcUrl, 'eth_subscribe', ['logs', {
                 address: CONTRACT,
                 topics: [LOG_TOPIC]
             }], {
@@ -1153,7 +1504,7 @@ export function main_scenario(data) {
             // Enhanced gas estimation with real Ethereum transaction types
             let estimateParams;
             let txType = 'custom';
-            
+
             if (__ENV.EST_DATA && __ENV.EST_CONTRACT) {
                 // Use provided custom data
                 estimateParams = {
@@ -1212,15 +1563,15 @@ export function main_scenario(data) {
                         }
                     }
                 ];
-                
+
                 // Select scenario based on VU and iteration for diverse testing
                 const scenarioIndex = ((__VU - 1) * 1000 + __ITER) % scenarios.length;
                 const selectedScenario = scenarios[scenarioIndex];
-                
+
                 estimateParams = selectedScenario.params;
                 txType = selectedScenario.type;
             }
-            
+
             // Add gas price for more realistic estimation
             if (!estimateParams.gasPrice) {
                 try {
@@ -1233,15 +1584,15 @@ export function main_scenario(data) {
                     console.warn(`Failed to fetch gas price for estimation: ${e.message}`);
                 }
             }
-            
+
             // Simple validation function for gas estimation results
             const validateGasEstimate = (result) => {
                 // Just check if it's a valid hex string - let the RPC handle the actual validation
                 return typeof result === 'string' && result.startsWith('0x') && result.length > 2;
             };
-            
-            return jsonCall(rpcUrl, 'eth_estimateGas', [estimateParams], 
-                { 
+
+            return jsonCall(rpcUrl, 'eth_estimateGas', [estimateParams],
+                {
                     tx_type: txType,
                     contract_addr: String(estimateParams.to || ''),
                     from_addr: String(estimateParams.from || ''),
@@ -1256,7 +1607,7 @@ export function main_scenario(data) {
             if (!txHash) {
                 throw new Error('TX_HASH environment variable is required for S18_GetTxReceipt scenario');
             }
-            
+
             return jsonCall(rpcUrl, 'eth_getTransactionReceipt', [txHash],
                 { tx_hash: txHash },
                 result => result && (result.status === '0x1' || result.status === '0x0'));
@@ -1265,44 +1616,83 @@ export function main_scenario(data) {
         case 'S19_BatchCalls': {
             const batchSize = Number(__ENV.BATCH_CALL_SIZE || 10);
             const batch = Array.from({ length: batchSize }, (_, i) => ({
-                jsonrpc: '2.0', 
-                id: i + 1, 
+                jsonrpc: '2.0',
+                id: i + 1,
                 method: 'eth_call',
                 params: [{ to: CONTRACT, data: SIMPLE_SIG }, 'latest'],
             }));
-            
+
             const startTime = Date.now();
-            const tags = { 
+            const tags = {
                 run_id: RUN_ID,
-                scenario: SCENARIO, 
+                scenario: SCENARIO,
                 region: REGION,
                 endpoint: rpcUrl,
                 method: 'batch_eth_call',
                 transport: 'http',
                 batch_size: batchSize
             };
-            
-            const res = post(rpcUrl, JSON.stringify(batch), { tags });
-            
+
+            let res;
+            try {
+                res = post(rpcUrl, JSON.stringify(batch), {
+                    tags: tags,
+                    timeout: REQUEST_TIMEOUT
+                });
+            } catch (e) {
+                const errorMsg = e.isTimeout ?
+                    `Batch call timeout after ${e.duration}ms: ${e.message}` :
+                    `Batch call network error: ${e.message}`;
+
+                return recordFailure(tags, errorMsg, {
+                    isTimeout: e.isTimeout,
+                    response: null,
+                    requestStartTime: startTime,
+                    timeoutMs: PARSED_TIMEOUT_MS
+                });
+            }
+
+            // Enhanced timeout detection for batch calls
+            const timeoutDetection = detectTimeout(res, startTime, PARSED_TIMEOUT_MS);
+            if (timeoutDetection.isTimeout) {
+                return recordFailure(tags,
+                    `Batch call timeout - Duration: ${timeoutDetection.actualDuration}ms, Reasons: ${timeoutDetection.reasons.join(', ')}`, {
+                        isTimeout: true,
+                        response: res,
+                        requestStartTime: startTime,
+                        timeoutMs: PARSED_TIMEOUT_MS
+                    });
+            }
+
             // Validate batch response
             if (res.status !== 200) {
-                return recordFailure({ ...tags, stage: 'http' }, 
-                    `Batch call HTTP error: ${res.status}`, { isHttpError: true });
+                return recordFailure({ ...tags, stage: 'http' },
+                    `Batch call HTTP error: ${res.status}`, {
+                        isHttpError: true,
+                        response: res,
+                        requestStartTime: startTime
+                    });
             }
-            
+
             let batchResponse;
             try {
                 batchResponse = res.json();
             } catch (e) {
-                return recordFailure({ ...tags, stage: 'json_parse' }, 
-                    `Batch response parse error: ${e.message}`);
+                return recordFailure({ ...tags, stage: 'json_parse' },
+                    `Batch response parse error: ${e.message}`, {
+                        response: res,
+                        requestStartTime: startTime
+                    });
             }
-            
+
             if (!Array.isArray(batchResponse) || batchResponse.length !== batchSize) {
-                return recordFailure({ ...tags, stage: 'batch_validation' }, 
-                    `Invalid batch response: expected ${batchSize} items, got ${Array.isArray(batchResponse) ? batchResponse.length : 'non-array'}`);
+                return recordFailure({ ...tags, stage: 'batch_validation' },
+                    `Invalid batch response: expected ${batchSize} items, got ${Array.isArray(batchResponse) ? batchResponse.length : 'non-array'}`, {
+                        response: res,
+                        requestStartTime: startTime
+                    });
             }
-            
+
             // Validate each response in batch
             let successCount = 0;
             batchResponse.forEach((resp, index) => {
@@ -1312,39 +1702,68 @@ export function main_scenario(data) {
                     console.warn(`Batch item ${index} error: ${resp.error.message}`);
                 }
             });
-            
+
             const duration = Date.now() - startTime;
             const successRate = successCount / batchSize;
-            
+
             if (successRate >= 0.8) { // 80% success threshold
                 recordSuccess({ ...tags, success_count: successCount, success_rate: successRate });
             } else {
-                recordFailure({ ...tags, success_count: successCount, success_rate: successRate }, 
-                    `Batch success rate too low: ${successRate}`);
+                recordFailure({ ...tags, success_count: successCount, success_rate: successRate },
+                    `Batch success rate too low: ${successRate}`, {
+                        response: res,
+                        requestStartTime: startTime
+                    });
             }
-            
+
             addRTT(duration, tags);
             return batchResponse;
         }
 
         case 'S20_HttpHandshake': {
             const startTime = Date.now();
-            const tags = { 
+            const tags = {
                 run_id: RUN_ID,
-                scenario: SCENARIO, 
+                scenario: SCENARIO,
                 region: REGION,
                 endpoint: rpcUrl,
                 method: 'http_handshake',
                 transport: 'http'
             };
-            
-            const res = get(rpcUrl, { 
-                timeout: '5s',
-                tags: tags
-            });
-            
+
+            let res;
+            try {
+                res = get(rpcUrl, {
+                    timeout: '5s',
+                    tags: tags
+                });
+            } catch (e) {
+                const errorMsg = e.isTimeout ?
+                    `HTTP handshake timeout after ${e.duration}ms: ${e.message}` :
+                    `HTTP handshake network error: ${e.message}`;
+
+                return recordFailure(tags, errorMsg, {
+                    isTimeout: e.isTimeout,
+                    response: null,
+                    requestStartTime: startTime,
+                    timeoutMs: 5000 // 5 second timeout
+                });
+            }
+
             const duration = Date.now() - startTime;
-            
+
+            // Enhanced timeout detection for handshake
+            const timeoutDetection = detectTimeout(res, startTime, 5000);
+            if (timeoutDetection.isTimeout) {
+                return recordFailure(tags,
+                    `HTTP handshake timeout - Duration: ${timeoutDetection.actualDuration}ms, Reasons: ${timeoutDetection.reasons.join(', ')}`, {
+                        isTimeout: true,
+                        response: res,
+                        requestStartTime: startTime,
+                        timeoutMs: 5000
+                    });
+            }
+
             // Check various aspects of the HTTP handshake
             const checks = {
                 'http_status_ok': r => r.status >= 200 && r.status < 300,
@@ -1352,17 +1771,20 @@ export function main_scenario(data) {
                 'connection_established': r => r.timings.connecting >= 0,
                 'tls_handshake_ok': r => !rpcUrl.startsWith('https') || r.timings.tls_handshaking >= 0
             };
-            
+
             const handshakeOk = check(res, checks, tags);
-            
+
             if (handshakeOk && res.status >= 200 && res.status < 300) {
                 recordSuccess({ ...tags, status: res.status });
             } else {
-                recordFailure({ ...tags, status: res.status }, 
-                    `HTTP handshake failed: status=${res.status}, duration=${duration}ms`, 
-                    { isHttpError: true });
+                recordFailure({ ...tags, status: res.status },
+                    `HTTP handshake failed: status=${res.status}, duration=${duration}ms`, {
+                        isHttpError: true,
+                        response: res,
+                        requestStartTime: startTime
+                    });
             }
-            
+
             addRTT(duration, tags);
             return {
                 status: res.status,
@@ -1394,8 +1816,8 @@ function randomAddress() {
  * @returns {boolean} True if valid Ethereum address
  */
 function isValidEthAddress(address) {
-    return typeof address === 'string' && 
-           address.match(/^0x[a-fA-F0-9]{40}$/) !== null;
+    return typeof address === 'string' &&
+        address.match(/^0x[a-fA-F0-9]{40}$/) !== null;
 }
 
 /**
@@ -1420,18 +1842,24 @@ function calculateOptimalBatchSize(currentVUs) {
 }
 
 /* ============================================================================
- * 9. ENHANCED TEARDOWN WITH FUND RECOVERY
+ * 8. ENHANCED TEARDOWN WITH FUND RECOVERY
  * ========================================================================== */
 
 export function teardown(data) {
     const teardownStart = Date.now();
-    
+
     console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
         level: 'INFO',
         message: 'Starting teardown process',
         run_id: RUN_ID,
-        scenario: SCENARIO
+        scenario: SCENARIO,
+        timeout_stats: {
+            total_timeouts: timeoutCount.values ? Object.values(timeoutCount.values).reduce((a, b) => a + b, 0) : 'N/A',
+            timeout_rate: timeoutRate.values ? Object.values(timeoutRate.values).reduce((a, b) => a + b, 0) : 'N/A',
+            configured_timeout_ms: PARSED_TIMEOUT_MS,
+            ws_timeout_ms: WS_TIMEOUT
+        }
     }));
 
     // Wait for any pending transactions to settle
@@ -1449,29 +1877,29 @@ export function teardown(data) {
     let recoveredFunds = BigInt(0);
     let successfulRefunds = 0;
     let failedRefunds = 0;
-    
+
     try {
         const currentGasPrice = Number(jsonCall(refundUrl, 'eth_gasPrice', [], { op: 'teardown_gas_price' }));
         const gasPrice = Math.floor(currentGasPrice * 1.1); // 10% buffer for faster processing
-        
+
         console.log(`Teardown gas price: ${gasPrice}`);
 
         // Process wallets in batches for better performance
         for (let i = 0; i < data.wallets.length; i += BATCH_SIZE) {
             const batch = data.wallets.slice(i, i + BATCH_SIZE);
-            
+
             batch.forEach(w => {
                 try {
                     const balanceHex = jsonCall(refundUrl, 'eth_getBalance', [w.addr, 'latest'], {
                         op: 'teardown_balance_check',
                         wallet_addr: w.addr
                     });
-                    
+
                     if (!balanceHex) return;
-                    
+
                     const balance = BigInt(balanceHex);
                     const gasCost = BigInt(gasPrice) * BigInt(21000);
-                    
+
                     // Only refund if balance covers gas costs with some margin
                     if (balance <= gasCost * BigInt(2)) {
                         console.log(`Wallet ${w.addr} balance too low for refund: ${balance}`);
@@ -1483,7 +1911,7 @@ export function teardown(data) {
                         op: 'teardown_nonce',
                         wallet_addr: w.addr
                     }));
-                    
+
                     const raw = ethgo.signLegacyTx({
                         nonce: nonce,
                         gasPrice: gasPrice,
@@ -1493,13 +1921,13 @@ export function teardown(data) {
                         data: '0x',
                         chainId: CHAIN_ID
                     }, w.pk);
-                    
-                    const txHash = jsonCall(refundUrl, 'eth_sendRawTransaction', [raw], { 
+
+                    const txHash = jsonCall(refundUrl, 'eth_sendRawTransaction', [raw], {
                         op: 'teardown_refund',
                         wallet_addr: w.addr,
                         amount: sendValue.toString()
                     });
-                    
+
                     if (txHash) {
                         recoveredFunds += sendValue;
                         successfulRefunds++;
@@ -1510,19 +1938,19 @@ export function teardown(data) {
                     console.error(`Failed to refund wallet ${w.addr}: ${e.message}`);
                 }
             });
-            
+
             // Small delay between batches
             if (i + BATCH_SIZE < data.wallets.length) {
                 sleep(0.5);
             }
         }
-        
+
     } catch (e) {
         console.error(`Teardown error: ${e.message}`);
     }
-    
+
     const teardownDuration = Date.now() - teardownStart;
-    
+
     console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
         level: 'INFO',
