@@ -266,7 +266,7 @@ function profile(name, vus) {
                 rate: 10000,
                 timeUnit: '1s',
                 duration: '10m',
-                // preAllocatedVUs: Math.max(20000, vus * 6),
+                preAllocatedVUs: Math.max(20000, vus * 2),
             };
         case 'steady_12k':
             return {
