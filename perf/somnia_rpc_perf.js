@@ -100,7 +100,7 @@ const VU_COUNT = Math.max(1, RPC_URLS.length * PER_RPC_VU);
 function profile(name, vus) {
     switch (name) {
         case 'baseline':
-            return { executor: 'constant-vus', vus, duration: '10m' };
+            return {executor: 'constant-vus', vus, duration: '10m'};
         case 'spike_200':
             return {
                 executor: 'constant-arrival-rate',
@@ -112,10 +112,10 @@ function profile(name, vus) {
                 executor: 'ramping-arrival-rate', timeUnit: '1s',
                 preAllocatedVUs: Math.max(500, vus * 10),
                 stages: [
-                    { target: 0,      duration: '5s'  },
-                    { target: 1000,   duration: '30s' },
-                    { target: 5000,   duration: '60s' },
-                    { target: 10000,  duration: '60s' },
+                    {target: 0, duration: '5s'},
+                    {target: 1000, duration: '30s'},
+                    {target: 5000, duration: '60s'},
+                    {target: 10000, duration: '60s'},
                 ],
             };
         case 'break_steady':
@@ -207,12 +207,12 @@ function profile(name, vus) {
                 timeUnit: '1s',
                 preAllocatedVUs: Math.max(2000, vus * 10),
                 stages: [
-                    { target:  500, duration: '2m' },
-                    { target: 1000, duration: '2m' },
-                    { target: 2000, duration: '2m' },
-                    { target: 4000, duration: '2m' },
-                    { target: 8000, duration: '2m' },
-                    { target:    0, duration: '1m' },
+                    {target: 500, duration: '2m'},
+                    {target: 1000, duration: '2m'},
+                    {target: 2000, duration: '2m'},
+                    {target: 4000, duration: '2m'},
+                    {target: 8000, duration: '2m'},
+                    {target: 0, duration: '1m'},
                 ],
             };
         case 'stress_recovery':
@@ -221,10 +221,10 @@ function profile(name, vus) {
                 timeUnit: '1s',
                 preAllocatedVUs: Math.max(4000, vus * 12),
                 stages: [
-                    { target:    0, duration: '5s'  },
-                    { target: 8000, duration: '90s' },
-                    { target: 2000, duration: '3m'  },
-                    { target:    0, duration: '1m'  },
+                    {target: 0, duration: '5s'},
+                    {target: 8000, duration: '90s'},
+                    {target: 2000, duration: '3m'},
+                    {target: 0, duration: '1m'},
                 ],
             };
         case 'random_spike':
@@ -239,9 +239,9 @@ function profile(name, vus) {
                 timeUnit: '1s',
                 preAllocatedVUs: Math.max(6000, vus * 20),
                 stages: [
-                    { target: 0,     duration: '10s' },
-                    { target: 30000, duration: '20s' },
-                    { target: 0,     duration: '10s' },
+                    {target: 0, duration: '10s'},
+                    {target: 30000, duration: '20s'},
+                    {target: 0, duration: '10s'},
                 ],
             };
         case 'ramp_up_down':
@@ -250,13 +250,13 @@ function profile(name, vus) {
                 timeUnit: '1s',
                 preAllocatedVUs: Math.max(3000, vus * 10),
                 stages: [
-                    { target: 0,    duration: '10s' },
-                    { target: 500,  duration: '1m'  },
-                    { target: 2500, duration: '1m'  },
-                    { target: 5000, duration: '1m'  },
-                    { target: 2500, duration: '1m'  },
-                    { target: 500,  duration: '1m'  },
-                    { target: 0,    duration: '30s' },
+                    {target: 0, duration: '10s'},
+                    {target: 500, duration: '1m'},
+                    {target: 2500, duration: '1m'},
+                    {target: 5000, duration: '1m'},
+                    {target: 2500, duration: '1m'},
+                    {target: 500, duration: '1m'},
+                    {target: 0, duration: '30s'},
                 ],
             };
         case 'steady_50':
@@ -283,17 +283,9 @@ function profile(name, vus) {
                 duration: '10m',
                 preAllocatedVUs: Math.max(100, vus * 6),
             };
-        case 'steady_8k':
-            return {
-                executor: 'constant-arrival-rate',
-                rate: 8000,
-                timeUnit: '1s',
-                duration: '10m',
-                preAllocatedVUs: Math.max(100, vus * 2),
-            };
-        case 'steady_10k':
-            const rate        = 10_000;
-            const avgLatency  = 0.2;
+        case 'steady_8k': {
+            const rate = 8_000;
+            const avgLatency = 0.2;
             const concurrency = Math.ceil(rate * avgLatency);
             return {
                 executor: 'constant-arrival-rate',
@@ -301,8 +293,22 @@ function profile(name, vus) {
                 timeUnit: '1s',
                 duration: '10m',
                 preAllocatedVUs: Math.ceil(concurrency * 1.2),
-                maxVUs:           Math.ceil(concurrency * 2),
+                maxVUs: Math.ceil(concurrency * 2),
             };
+    }
+        case 'steady_10k': {
+            const rate = 10_000;
+            const avgLatency = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
+            return {
+                executor: 'constant-arrival-rate',
+                rate: rate,
+                timeUnit: '1s',
+                duration: '10m',
+                preAllocatedVUs: Math.ceil(concurrency * 1.2),
+                maxVUs: Math.ceil(concurrency * 2),
+            };
+        }
         // steady_12k: sustained 12 000 req/s for 10 minutes
         case 'steady_12k': {
             const rate        = 12_000;
