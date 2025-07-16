@@ -888,7 +888,7 @@ main() {
     DEFAULT_PROFILES=(
         baseline spike_200 ramp_find_max break_steady spike_10k spike_20k 
         spike_30k spike_28k spike_25k spike_24k spike_26k spike_15k spike_13k 
-        spike_5k steady_900 steady_20k steady_5k steady_10k steady_12k 
+        spike_5k steady_900 steady_1k steady_20k steady_5k steady_10k steady_12k
         steady_17k steady_15k steady_50 steady_13k steady_14k
     )
     
