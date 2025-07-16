@@ -275,6 +275,19 @@ function profile(name, vus) {
                 duration: '10m',
                 preAllocatedVUs: Math.max(1800, vus * 6),
             };
+        case 'steady_1k': {
+            const rate = 1_000;
+            const avgLatency = 0.2;
+            const concurrency = Math.ceil(rate * avgLatency);
+            return {
+                executor: 'constant-arrival-rate',
+                rate: rate,
+                timeUnit: '1s',
+                duration: '10m',
+                preAllocatedVUs: 50,
+                maxVUs: 50,
+            };
+        }
         case 'steady_5k':
             return {
                 executor: 'constant-arrival-rate',
@@ -295,7 +308,7 @@ function profile(name, vus) {
                 preAllocatedVUs: Math.ceil(concurrency * 1.2),
                 maxVUs: Math.ceil(concurrency * 2),
             };
-    }
+        }
         case 'steady_10k': {
             const rate = 10_000;
             const avgLatency = 0.2;
