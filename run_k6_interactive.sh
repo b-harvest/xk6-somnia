@@ -125,6 +125,8 @@ if ! ask_reuse K6_INFLUXDB_ORGANIZATION "K6_INFLUXDB_ORGANIZATION"; then \
      prompt_plain K6_INFLUXDB_ORGANIZATION "Enter K6 InfluxDB organization"; fi
 if ! ask_reuse K6_INFLUXDB_BUCKET "K6_INFLUXDB_BUCKET"; then \
      prompt_plain K6_INFLUXDB_BUCKET "Enter K6 InfluxDB bucket"; fi
+if ! ask_reuse REGION "REGION"; then \
+     prompt_plain REGION "Enter REGION (e.g., ap-northeast-1)"; fi
 
 ###############################################################################
 # 4. k6 binary & script
@@ -241,6 +243,7 @@ for scenario in "${SCENARIOS[@]}"; do
       SCENARIO_TYPE="$scenario" \
       LOAD_PROFILE="$profile" \
       PER_RPC_VU="$PER_RPC_VU" \
+      REGION="$REGION" \
       ${CONTRACT_ADDRESS:+CONTRACT_ADDRESS="$CONTRACT_ADDRESS"} \
       ${TEST_ADDRESS:+TEST_ADDRESS="$TEST_ADDRESS"} \
       ${ERC20_TOKEN:+ERC20_TOKEN="$ERC20_TOKEN"} \
@@ -253,6 +256,7 @@ for scenario in "${SCENARIOS[@]}"; do
       --tag run_id="$RUN_ID" \
       --tag scenario="$scenario" \
       --tag profile="$profile" \
+      --tag region="$REGION" \
       "${K6_OUT_ARG[@]}" \
       "$SCRIPT_PATH"
 

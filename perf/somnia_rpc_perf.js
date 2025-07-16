@@ -15,6 +15,7 @@ import wallet from 'k6/x/ethgo/wallet';
 // Test configuration from environment variables
 const SCENARIO = (__ENV.SCENARIO_TYPE || 'S1_BlockNumber').trim();
 const PROFILE = (__ENV.LOAD_PROFILE || 'baseline').trim().toLowerCase();
+const REGION = (__ENV.REGION || 'unknown').trim();
 
 // RPC endpoint configuration
 const RPC_URLS = (__ENV.RPC_URLS || '')
@@ -76,7 +77,7 @@ const VU_COUNT = Math.max(1, RPC_URLS.length * PER_RPC_VU);
 function profile(name, vus) {
     switch (name) {
         case 'baseline':
-            return { executor: 'constant-vus', vus, duration: '1m' };
+            return { executor: 'constant-vus', vus, duration: '10m' };
         case 'spike_200':
             return {
                 executor: 'constant-arrival-rate',
@@ -257,7 +258,7 @@ function profile(name, vus) {
                 rate: 5000,
                 timeUnit: '1s',
                 duration: '10m',
-                preAllocatedVUs: Math.max(10000, vus * 6),
+                preAllocatedVUs: Math.max(100, vus * 6),
             };
         case 'steady_10k':
             return {
@@ -484,6 +485,7 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
     const baseTags = { 
         run_id: RUN_ID, 
         scenario: SCENARIO, 
+        region: REGION,
         endpoint: url, 
         method,
         transport: 'http',
@@ -828,6 +830,7 @@ function wsSub(wsUrl, rpcUrl, method, params, options = {}) {
         const baseTags = {
             run_id: RUN_ID,
             scenario: SCENARIO,
+            region: REGION,
             endpoint: rpcUrl,
             method: method,
             transport: 'websocket',
@@ -1272,6 +1275,7 @@ export function main_scenario(data) {
             const tags = { 
                 run_id: RUN_ID,
                 scenario: SCENARIO, 
+                region: REGION,
                 endpoint: rpcUrl,
                 method: 'batch_eth_call',
                 transport: 'http',
@@ -1328,6 +1332,7 @@ export function main_scenario(data) {
             const tags = { 
                 run_id: RUN_ID,
                 scenario: SCENARIO, 
+                region: REGION,
                 endpoint: rpcUrl,
                 method: 'http_handshake',
                 transport: 'http'
