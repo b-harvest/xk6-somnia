@@ -464,14 +464,24 @@ function recordSuccess(tags) {
 }
 
 /**
- * Enhanced timeout detection function
+ * Enhanced timeout detection function with metadata retrieval
  * @param {object} response - HTTP response object
  * @param {number} requestStartTime - Request start timestamp
  * @param {number} timeoutMs - Configured timeout in milliseconds
  * @returns {object} Timeout detection result
  */
 function detectTimeout(response, requestStartTime, timeoutMs) {
-    const actualDuration = Date.now() - requestStartTime;
+    // Try to get metadata from response object or fallback to WeakMap
+    let metadata = null;
+    if (response._timingMetadata) {
+        metadata = response._timingMetadata;
+    } else if (global.responseMetadata && global.responseMetadata.has(response)) {
+        metadata = global.responseMetadata.get(response);
+    }
+
+    // Use metadata start time if available, otherwise use provided start time
+    const startTime = metadata ? metadata.requestStartTime : requestStartTime;
+    const actualDuration = Date.now() - startTime;
     const timeoutThreshold = timeoutMs * 0.95; // 95% of configured timeout
 
     // Check multiple timeout indicators
@@ -543,10 +553,10 @@ function recordFailure(tags, reason, options = {}) {
             isTimeout = true;
             timeoutDetails = timeoutDetection;
 
-            // Add timeout-specific tags
+            // Add timeout-specific tags (convert all values to strings)
             enrichedTags.timeout_type = timeoutDetection.reasons.join(',');
-            enrichedTags.actual_duration = timeoutDetection.actualDuration;
-            enrichedTags.timeout_threshold = timeoutDetection.threshold;
+            enrichedTags.actual_duration = String(timeoutDetection.actualDuration);
+            enrichedTags.timeout_threshold = String(timeoutDetection.threshold);
 
             // Record timeout-specific metrics
             timeoutCount.add(1, enrichedTags);
@@ -658,11 +668,28 @@ function post(url, body, options = {}) {
         };
     }
 
-    // Add timing and timeout detection metadata to response
-    response._requestStartTime = startTime;
-    response._requestDuration = Date.now() - startTime;
-    response._requestId = requestId;
-    response._timeoutThreshold = parseTimeout(requestOptions.timeout);
+    // Store timing metadata separately to avoid read-only property issues
+    if (!response._timingMetadata) {
+        try {
+            response._timingMetadata = {
+                requestStartTime: startTime,
+                requestDuration: Date.now() - startTime,
+                requestId: requestId,
+                timeoutThreshold: parseTimeout(requestOptions.timeout)
+            };
+        } catch (e) {
+            // If we can't assign to response object, use a WeakMap for metadata
+            if (!global.responseMetadata) {
+                global.responseMetadata = new WeakMap();
+            }
+            global.responseMetadata.set(response, {
+                requestStartTime: startTime,
+                requestDuration: Date.now() - startTime,
+                requestId: requestId,
+                timeoutThreshold: parseTimeout(requestOptions.timeout)
+            });
+        }
+    }
 
     return response;
 }
@@ -704,11 +731,28 @@ function get(url, options = {}) {
         };
     }
 
-    // Add timing and timeout detection metadata to response
-    response._requestStartTime = startTime;
-    response._requestDuration = Date.now() - startTime;
-    response._requestId = requestId;
-    response._timeoutThreshold = parseTimeout(requestOptions.timeout);
+    // Store timing metadata separately to avoid read-only property issues
+    if (!response._timingMetadata) {
+        try {
+            response._timingMetadata = {
+                requestStartTime: startTime,
+                requestDuration: Date.now() - startTime,
+                requestId: requestId,
+                timeoutThreshold: parseTimeout(requestOptions.timeout)
+            };
+        } catch (e) {
+            // If we can't assign to response object, use a WeakMap for metadata
+            if (!global.responseMetadata) {
+                global.responseMetadata = new WeakMap();
+            }
+            global.responseMetadata.set(response, {
+                requestStartTime: startTime,
+                requestDuration: Date.now() - startTime,
+                requestId: requestId,
+                timeoutThreshold: parseTimeout(requestOptions.timeout)
+            });
+        }
+    }
 
     return response;
 }
@@ -752,7 +796,7 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
             `Network error: ${e.message}`;
 
         if (retryAttempt < MAX_RETRIES) {
-            retryCount.add(1, { ...baseTags, error_type: 'network', is_timeout: e.isTimeout });
+            retryCount.add(1, { ...baseTags, error_type: 'network', is_timeout: String(e.isTimeout) });
             sleep(RETRY_DELAY_MS / 1000);
             return jsonCall(url, method, params, extraTags, expectFn, retryAttempt + 1);
         }
@@ -802,7 +846,7 @@ function jsonCall(url, method, params, extraTags = {}, expectFn = _ => true, ret
             retryCount.add(1, {
                 ...baseTags,
                 error_code: res.error_code,
-                is_network_timeout: isNetworkTimeout
+                is_network_timeout: String(isNetworkTimeout)
             });
             sleep(RETRY_DELAY_MS / 1000);
             return jsonCall(url, method, params, extraTags, expectFn, retryAttempt + 1);
