@@ -23,6 +23,5 @@ export K6_INFLUXDB_CONCURRENT_WRITES="8"
 export K6_INFLUXDB_TAG_EXCLUDE="vu,iter,scenario,error,ocsp_status,tls_version,group"
 
 # Additional optimizations
-export K6_HTTP_DEBUG="false"
 export K6_NO_THRESHOLDS="true"
 export K6_NO_SUMMARY="true"
