@@ -704,8 +704,6 @@ run_k6_test() {
         --tag "run_id=$run_id"
         --tag "scenario=$scenario"
         --tag "profile=$profile"
-        --no-thresholds
-        --no-summary
     )
 
     # Add output args if configured (only if using InfluxDB)

@@ -254,13 +254,24 @@ for scenario in "${SCENARIOS[@]}"; do
       ${EST_DATA:+EST_DATA="$EST_DATA"} \
       ${START_BLOCK:+START_BLOCK="$START_BLOCK"} \
       ${END_BLOCK:+END_BLOCK="$END_BLOCK"} \
+      K6_NO_CONNECTION_REUSE=1 \
+      K6_DISCARD_RESPONSE_BODIES=0 \
+      K6_LOG_OUTPUT=none \
     "$K6_BIN" run \
       --tag run_id="$RUN_ID" \
       --tag scenario="$scenario" \
       --tag profile="$profile" \
       --tag region="$REGION" \
+      --no-usage-report \
       "${K6_OUT_ARG[@]}" \
-      "$SCRIPT_PATH"
+      "$SCRIPT_PATH" 2>&1 | tee /tmp/k6_output_$$.log | grep -v "source=http-debug" || true
+    
+    # Display the summary if it exists
+    if grep -q "TEST SUMMARY" /tmp/k6_output_$$.log 2>/dev/null; then
+      echo ""
+      grep -A 50 "TEST SUMMARY" /tmp/k6_output_$$.log | head -n 30
+    fi
+    rm -f /tmp/k6_output_$$.log
 
     status=$?
     if (( status != 0 )); then

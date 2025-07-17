@@ -631,7 +631,9 @@ function recordFailure(tags, reason, options = {}) {
         };
     }
 
-    console.error(JSON.stringify(logEntry));
+    if (__ENV.K6_LOG_OUTPUT !== 'none') {
+        console.error(JSON.stringify(logEntry));
+    }
 }
 
 /* ============================================================================
@@ -1000,23 +1002,25 @@ export function setup() {
     const HHMMSS = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     const runId = `run_${YYYYMMDD}_${HHMMSS}_${SCENARIO}_${PROFILE}`;
 
-    console.log(JSON.stringify({
-        timestamp: new Date().toISOString(),
-        level: 'INFO',
-        message: 'Starting test setup',
-        run_id: runId,
-        scenario: SCENARIO,
-        profile: PROFILE,
-        wallet_count: WALLET_CNT,
-        rpc_urls: RPC_URLS.length,
-        timeout_config: {
-            request_timeout: REQUEST_TIMEOUT,
-            parsed_timeout_ms: PARSED_TIMEOUT_MS,
-            ws_timeout: WS_TIMEOUT,
-            max_retries: MAX_RETRIES,
-            retry_delay_ms: RETRY_DELAY_MS
-        }
-    }));
+    if (__ENV.K6_LOG_OUTPUT !== 'none') {
+        console.log(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'INFO',
+            message: 'Starting test setup',
+            run_id: runId,
+            scenario: SCENARIO,
+            profile: PROFILE,
+            wallet_count: WALLET_CNT,
+            rpc_urls: RPC_URLS.length,
+            timeout_config: {
+                request_timeout: REQUEST_TIMEOUT,
+                parsed_timeout_ms: PARSED_TIMEOUT_MS,
+                ws_timeout: WS_TIMEOUT,
+                max_retries: MAX_RETRIES,
+                retry_delay_ms: RETRY_DELAY_MS
+            }
+        }));
+    }
 
     if (!RPC_URLS.length) {
         throw new Error('At least one RPC URL must be specified in RPC_URLS');
@@ -1033,11 +1037,15 @@ export function setup() {
         };
     });
 
-    console.log(`Generated ${wallets.length} test wallets`);
+    if (__ENV.K6_LOG_OUTPUT !== 'none') {
+        console.log(`Generated ${wallets.length} test wallets`);
+    }
 
     // Enhanced wallet funding for write scenarios
     if (WRITE_SCENARIOS.includes(SCENARIO)) {
-        console.log('Funding wallets for write scenarios...');
+        if (__ENV.K6_LOG_OUTPUT !== 'none') {
+            console.log('Funding wallets for write scenarios...');
+        }
         const fundUrl = RPC_URLS[0];
 
         // Get current nonce and gas price with retries
@@ -1045,7 +1053,9 @@ export function setup() {
         const currentGasPrice = Number(jsonCall(fundUrl, 'eth_gasPrice', [], { op: 'get_gas_price' }));
         const gasPrice = Math.floor(currentGasPrice * 1.2); // 20% buffer
 
-        console.log(`Base nonce: ${baseNonce}, Gas price: ${gasPrice}`);
+        if (__ENV.K6_LOG_OUTPUT !== 'none') {
+            console.log(`Base nonce: ${baseNonce}, Gas price: ${gasPrice}`);
+        }
 
         // Fund wallets in batches to avoid nonce conflicts
         for (let i = 0; i < wallets.length; i += BATCH_SIZE) {
@@ -2026,4 +2036,82 @@ export function teardown(data) {
         failed_refunds: failedRefunds,
         total_wallets: data.wallets.length
     }));
+}
+
+// Handle summary generation and display
+export function handleSummary(data) {
+    const summary = {
+        scenario: SCENARIO,
+        profile: PROFILE,
+        timestamp: new Date().toISOString(),
+        metrics: {}
+    };
+
+    // Extract key metrics
+    for (const [key, metric] of Object.entries(data.metrics)) {
+        if (metric.values) {
+            summary.metrics[key] = {
+                count: metric.values.count,
+                rate: metric.values.rate,
+                p50: metric.values['p(50)'],
+                p95: metric.values['p(95)'],
+                p99: metric.values['p(99)'],
+                avg: metric.values.avg,
+                min: metric.values.min,
+                max: metric.values.max
+            };
+        }
+    }
+
+    // Console output for summary
+    console.log('\n============ TEST SUMMARY ============');
+    console.log(`Scenario: ${SCENARIO}`);
+    console.log(`Profile: ${PROFILE}`);
+    console.log(`Duration: ${data.state.testRunDurationMs}ms`);
+    console.log(`\nKey Metrics:`);
+    
+    // Display HTTP metrics
+    if (summary.metrics.http_req_duration) {
+        const httpDuration = summary.metrics.http_req_duration;
+        console.log(`\nHTTP Request Duration:`);
+        console.log(`  - P50: ${httpDuration.p50?.toFixed(2)}ms`);
+        console.log(`  - P95: ${httpDuration.p95?.toFixed(2)}ms`);
+        console.log(`  - P99: ${httpDuration.p99?.toFixed(2)}ms`);
+        console.log(`  - Avg: ${httpDuration.avg?.toFixed(2)}ms`);
+    }
+
+    // Display custom metrics
+    const customMetrics = [
+        'rpc_response_time', 
+        'ws_message_received_time',
+        'tx_submission_duration',
+        'batch_processing_time'
+    ];
+    
+    for (const metricName of customMetrics) {
+        if (summary.metrics[metricName]) {
+            const metric = summary.metrics[metricName];
+            console.log(`\n${metricName}:`);
+            console.log(`  - P50: ${metric.p50?.toFixed(2)}ms`);
+            console.log(`  - P95: ${metric.p95?.toFixed(2)}ms`);
+            console.log(`  - Count: ${metric.count}`);
+        }
+    }
+
+    // Display success rates
+    const successRates = ['rpc_success_rate', 'ws_success_rate', 'tx_success_rate'];
+    for (const rateName of successRates) {
+        if (summary.metrics[rateName]) {
+            const rate = summary.metrics[rateName];
+            console.log(`\n${rateName}: ${(rate.rate * 100).toFixed(2)}%`);
+        }
+    }
+
+    console.log('\n=====================================\n');
+
+    // Return both stdout summary and data for other outputs
+    return {
+        'stdout': '', // Empty to prevent default k6 output
+        'summary.json': JSON.stringify(summary, null, 2)
+    };
 }
