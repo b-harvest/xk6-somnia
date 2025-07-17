@@ -5,10 +5,10 @@
 export K6_INFLUXDB_HTTP_WRITE_TIMEOUT="120s"
 
 # Push interval - how often to send metrics (default 10s -> 2s)
-export K6_INFLUXDB_PUSH_INTERVAL="2s"
+export K6_INFLUXDB_PUSH_INTERVAL="4s"
 
 # Batch size - number of metrics per batch (default 5000 -> 500)
-export K6_INFLUXDB_BATCH_SIZE="500"
+export K6_INFLUXDB_BATCH_SIZE="5000"
 
 # Metrics queue size (default 1000 -> 50000)
 export K6_INFLUXDB_METRICS_FLUSHER_QUEUE_SIZE="50000"
