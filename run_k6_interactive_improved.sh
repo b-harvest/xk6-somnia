@@ -952,8 +952,8 @@ main() {
         fi
     fi
     
-    # Setup k6 output configuration
-    K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}&httpWriteTimeout=60s&httpPushInterval=5s&httpBatchSize=1000&metricsFlusherQueueSize=10000"
+    # Setup k6 output configuration with aggressive optimization
+    K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}&httpWriteTimeout=120s&httpPushInterval=2s&httpBatchSize=500&metricsFlusherQueueSize=50000&concurrentWrites=8"
     K6_OUT_ARG=(-o "$K6_OUT_DSN")
     log_success "Using xk6-influxdb output → $INFLUXDB (${K6_INFLUXDB_BUCKET})"
     
