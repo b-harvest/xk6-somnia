@@ -695,12 +695,14 @@ run_k6_test() {
     log_debug "Using k6 binary: $K6_BIN"
     log_debug "Using script: $SCRIPT_PATH"
     
-    # Build k6 command
+    # Build k6 command with metric reduction
     local -a k6_args=(
         run
         --tag "run_id=$run_id"
         --tag "scenario=$scenario"
         --tag "profile=$profile"
+        --no-thresholds
+        --no-summary
     )
     
     # Add output args if configured
@@ -719,7 +721,7 @@ run_k6_test() {
     local start_time=$(date +%s)
     local exit_code=0
     
-    # Build environment for k6
+    # Build environment for k6 with metric optimization
     env \
         PRIVATE_KEY="$PRIVATE_KEY" \
         WALLET_ADDRESS="$WALLET_ADDRESS" \
@@ -727,6 +729,9 @@ run_k6_test() {
         K6_INFLUXDB_TOKEN="$K6_INFLUXDB_TOKEN" \
         K6_INFLUXDB_ORGANIZATION="$K6_INFLUXDB_ORGANIZATION" \
         K6_INFLUXDB_BUCKET="$K6_INFLUXDB_BUCKET" \
+        K6_NO_THRESHOLDS="true" \
+        K6_NO_SUMMARY="true" \
+        K6_TAGS_AS_FIELDS="vu:int,iter:int" \
         RPC_URLS="$RPC_URLS_STR" \
         SCENARIO_TYPE="$scenario" \
         LOAD_PROFILE="$profile" \
@@ -952,8 +957,8 @@ main() {
         fi
     fi
     
-    # Setup k6 output configuration with aggressive optimization
-    K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}&httpWriteTimeout=120s&httpPushInterval=2s&httpBatchSize=500&metricsFlusherQueueSize=50000&concurrentWrites=8"
+    # Setup k6 output configuration with much smaller batch size to prevent 311MB requests
+    K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}&httpWriteTimeout=30s&httpPushInterval=1s&httpBatchSize=100&metricsFlusherQueueSize=10000&concurrentWrites=4"
     K6_OUT_ARG=(-o "$K6_OUT_DSN")
     log_success "Using xk6-influxdb output → $INFLUXDB (${K6_INFLUXDB_BUCKET})"
     
