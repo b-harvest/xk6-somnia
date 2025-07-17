@@ -1,0 +1,20 @@
+{
+  "scenarios": {
+    "influxdb": {
+      "executor": "constant-vus",
+      "exec": "default",
+      "vus": 1,
+      "duration": "1s"
+    }
+  },
+  "outputs": {
+    "influxdbv2": {
+      "httpWriteTimeout": "60s",
+      "httpPushInterval": "5s",
+      "httpBatchSize": 1000,
+      "metricsFlusherQueueSize": 10000,
+      "maxRetries": 5,
+      "retryInterval": "10s"
+    }
+  }
+}

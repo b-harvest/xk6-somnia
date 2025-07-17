@@ -1,0 +1,23 @@
+#!/bin/bash
+# InfluxDB output configuration for k6 to handle high-load metrics
+
+# Connection timeout (default 10s -> 60s)
+export K6_INFLUXDB_HTTP_WRITE_TIMEOUT="60s"
+
+# Push interval - how often to send metrics (default 10s -> 5s)
+export K6_INFLUXDB_PUSH_INTERVAL="5s"
+
+# Batch size - number of metrics per batch (default 5000 -> 1000)
+export K6_INFLUXDB_BATCH_SIZE="1000"
+
+# Metrics queue size (default 1000 -> 10000)
+export K6_INFLUXDB_METRICS_FLUSHER_QUEUE_SIZE="10000"
+
+# Enable gzip compression
+export K6_INFLUXDB_COMPRESSION="gzip"
+
+# Concurrent batch writes
+export K6_INFLUXDB_CONCURRENT_WRITES="4"
+
+# Tag filtering to reduce cardinality
+export K6_INFLUXDB_TAG_EXCLUDE="vu,iter,scenario,error,ocsp_status"

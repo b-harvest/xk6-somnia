@@ -11,8 +11,10 @@ set -euo pipefail
 # 0. Persistent env-file helpers
 ###############################################################################
 ENV_FILE="${ENV_FILE:-.k6_env}"
+ INFLUX_CONFIG_FILE="${INFLUX_CONFIG_FILE:-.k6_influxdb_config}"
 
 [[ -f $ENV_FILE ]] && source "$ENV_FILE"  # shellcheck source=/dev/null
+[[ -f $INFLUX_CONFIG_FILE ]] && source "$INFLUX_CONFIG_FILE"  # shellcheck source=/dev/null
 
 save_env() {               # save_env VAR
   local var="$1" val="${!var}"
@@ -139,7 +141,7 @@ SCRIPT_PATH="${SCRIPT_PATH:-perf/somnia_rpc_perf.js}"
 IFS='://' read -r proto rest <<<"$INFLUXDB"                # split proto://host...
 [[ -z $proto || -z $rest ]] && { echo "Invalid INFLUXDB URL '$INFLUXDB'"; exit 1; }
 
-K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}"
+K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}&httpWriteTimeout=60s&httpPushInterval=5s&httpBatchSize=1000&metricsFlusherQueueSize=10000"
 K6_OUT_ARG=(-o "$K6_OUT_DSN")
 echo "✔ Using xk6-influxdb output → $INFLUXDB (${K6_INFLUXDB_BUCKET})"
 

@@ -101,6 +101,18 @@ init_environment() {
         fi
     fi
     
+    # Load InfluxDB configuration if available
+    local INFLUX_CONFIG_FILE="${INFLUX_CONFIG_FILE:-.k6_influxdb_config}"
+    if [[ -f "$INFLUX_CONFIG_FILE" ]]; then
+        log_info "Loading InfluxDB configuration from $INFLUX_CONFIG_FILE"
+        if [[ -n "${BASH_VERSION:-}" ]]; then
+            source "$INFLUX_CONFIG_FILE" # shellcheck source=/dev/null
+        else
+            # zsh
+            . "$INFLUX_CONFIG_FILE"
+        fi
+    fi
+    
     # Set process limits (non-fatal if they fail)
     ulimit -n 65536 2>/dev/null || log_warn "Could not increase file descriptor limit"
     ulimit -u 32768 2>/dev/null || log_warn "Could not increase user process limit"
@@ -941,7 +953,7 @@ main() {
     fi
     
     # Setup k6 output configuration
-    K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}"
+    K6_OUT_DSN="xk6-influxdb=${INFLUXDB}?org=${K6_INFLUXDB_ORGANIZATION}&bucket=${K6_INFLUXDB_BUCKET}&token=${K6_INFLUXDB_TOKEN}&httpWriteTimeout=60s&httpPushInterval=5s&httpBatchSize=1000&metricsFlusherQueueSize=10000"
     K6_OUT_ARG=(-o "$K6_OUT_DSN")
     log_success "Using xk6-influxdb output → $INFLUXDB (${K6_INFLUXDB_BUCKET})"
     
