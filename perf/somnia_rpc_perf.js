@@ -2111,7 +2111,6 @@ export function handleSummary(data) {
 
     // Return both stdout summary and data for other outputs
     return {
-        'stdout': '', // Empty to prevent default k6 output
         'summary.json': JSON.stringify(summary, null, 2)
     };
 }
