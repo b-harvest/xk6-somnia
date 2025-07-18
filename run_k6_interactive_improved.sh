@@ -729,8 +729,6 @@ run_k6_test() {
     local -a env_vars=(
         PRIVATE_KEY="$PRIVATE_KEY"
         WALLET_ADDRESS="$WALLET_ADDRESS"
-        K6_NO_THRESHOLDS="true"
-        K6_NO_SUMMARY="true"
         RPC_URLS="$RPC_URLS_STR"
         SCENARIO_TYPE="$scenario"
         LOAD_PROFILE="$profile"
