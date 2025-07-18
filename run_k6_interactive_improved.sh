@@ -835,6 +835,7 @@ OPTIONS:
     -n          Non-interactive mode (use defaults)
     -s SCENARIO Filter to specific scenario
     -p PROFILE  Filter to specific profile
+    -u URL      RPC URL(s) to use (comma-separated)
     -r STATE    Resume from saved state file
     -i          Disable InfluxDB output (local execution only)
     -I          Enable InfluxDB output (default)
@@ -847,6 +848,7 @@ EXAMPLES:
     $SCRIPT_NAME -s S1_BlockNumber  # Run specific scenario
     $SCRIPT_NAME -p baseline        # Run specific profile
     $SCRIPT_NAME -n -s S1_BlockNumber -p baseline  # Non-interactive with filters
+    $SCRIPT_NAME -n -u https://rpc.example.com  # Non-interactive with custom RPC
     $SCRIPT_NAME -d                 # Debug mode
 
 ENVIRONMENT:
@@ -870,6 +872,7 @@ EOF
 main() {
     local SCENARIO_FILTER=""
     local PROFILE_FILTER=""
+    local RPC_URLS_PARAM=""
     local RESUME_FROM=""
     local DEBUG=0
     local VERBOSE=0
@@ -884,7 +887,7 @@ main() {
     fi
 
     # Parse options using getopts
-    while getopts ":hdvniIs:p:r:" opt; do
+    while getopts ":hdvniIs:p:u:r:" opt; do
         case $opt in
             h) print_usage ;;
             d) DEBUG=1 ;;
@@ -894,6 +897,7 @@ main() {
             I) USE_INFLUXDB=1 ;;  # Enable InfluxDB (explicit)
             s) SCENARIO_FILTER="$OPTARG" ;;
             p) PROFILE_FILTER="$OPTARG" ;;
+            u) RPC_URLS_PARAM="$OPTARG" ;;
             r) RESUME_FROM="$OPTARG" ;;
             \?) log_error "Invalid option: -$OPTARG"; print_usage ;;
             :) log_error "Option -$OPTARG requires an argument"; print_usage ;;
@@ -1023,7 +1027,11 @@ main() {
     fi
 
     # RPC endpoints selection
-    if [[ $NON_INTERACTIVE -eq 1 ]]; then
+    if [[ -n "$RPC_URLS_PARAM" ]]; then
+        # Use RPC URLs from command line parameter
+        IFS=',' read -r -a RPCS <<< "${RPC_URLS_PARAM// /}"
+        log_info "Using RPC endpoints from command line: ${RPCS[*]}"
+    elif [[ $NON_INTERACTIVE -eq 1 ]]; then
         log_info "Non-interactive mode: Using default RPC endpoints"
         RPCS=("${DEFAULT_RPCS[@]}")
     else
